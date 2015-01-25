@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <unistd.h>
+#include <time.h>
 #include <syslog.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -136,11 +137,11 @@ int mainloop()
 
   /* TODO: Setup linphone callbacks */
 
-  p_linphone = linphone_core_new(&vtable, NULL, NULL, NULL);
+  /* p_linphone = linphone_core_new(&vtable, NULL, NULL, NULL); */
   piphoned_hwactions_init();
 
   while(true) {
-    linphone_core_iterate(p_linphone);
+    /* linphone_core_iterate(p_linphone); */
     handle_user_input();
     ms_usleep(50000);
   }
@@ -149,7 +150,8 @@ int mainloop()
 
   /* TODO: Iterate all the proxies and close them down */
 
-  linphone_core_destroy(p_linphone);
+  /* linphone_core_destroy(p_linphone); */
+
   return 0;
 }
 
