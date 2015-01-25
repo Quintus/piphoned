@@ -22,6 +22,11 @@ if (NOT(PIPHONED_VERSION_GIT))
 endif()
 
 ########################################
+# Compilation options
+
+set(PIPHONED_MAX_PROXY_NUM 256 CACHE STRING "Maximum number of proxies we can connect to simultaneously.")
+
+########################################
 # Extra flags
 
 if (CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")

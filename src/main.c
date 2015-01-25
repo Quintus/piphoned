@@ -35,6 +35,7 @@ int main(int argc, char* argv[])
    * Cleanup
    **************************************/
 
+  piphoned_config_free();
   syslog(LOG_NOTICE, "Program finished.");
   closelog();
 }

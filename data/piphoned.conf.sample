@@ -1,0 +1,15 @@
+# piphoned.conf
+# Configuration file for the piphoned daemon.
+#
+# This is an example configuration file; you should adapt it so
+# that it suits your local needs.
+
+[General]
+
+# The target user and group for privilege dropping.
+uid = telefon
+gid = telefon
+
+# Where to write the PID to.
+pidfile = "/var/run/piphoned.pid"
+
