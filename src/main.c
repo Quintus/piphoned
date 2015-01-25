@@ -79,6 +79,27 @@ int main(int argc, char* argv[])
   syslog(LOG_INFO, "Fork setup completed.");
 
   /***************************************
+   * Privilege dropping
+   ***************************************/
+
+  if (setgid(g_piphoned_config_info.gid) != 0) {
+    syslog(LOG_CRIT, "Failed to drop group privileges: %m. Exiting!");
+    return 3;
+  }
+  if (setuid(g_piphoned_config_info.uid) != 0) {
+    syslog(LOG_CRIT, "Failed to drop user privileges: %m. Exiting!");
+    return 3;
+  }
+
+  /* Paranoid extra security check */
+  if (setuid(0) != -1) {
+    syslog(LOG_CRIT, "Regained root privileges! Exiting!");
+    return 3;
+  }
+
+  syslog(LOG_INFO, "Successfully dropped privileges.");
+
+  /***************************************
    * Cleanup
    **************************************/
 
