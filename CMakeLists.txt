@@ -44,7 +44,7 @@ include_directories(${Linphone_INCLUDE_DIRS} ${WiringPi_INCLUDE_DIR})
 file(GLOB_RECURSE piphoned_sources
   "src/*.c"
   "src/*.h")
-configure_file(${CMAKE_BINARY_DIR}/config.h)
+configure_file(${CMAKE_SOURCE_DIR}/config.h.in ${CMAKE_BINARY_DIR}/config.h)
 include_directories("${CMAKE_SOURCE_DIR}/src" ${CMAKE_BINARY_DIR})
 
 ########################################
