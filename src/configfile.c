@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <syslog.h>
 #include "configfile.h"
 
 struct piphoned_config_parsedfile g_piphoned_config_info;
