@@ -1,6 +1,6 @@
 #ifndef PIPHONED_CONFIGFILE_H
 #define PIPHONED_CONFIGFILE_H
-#include <unistd.h>
+#include <linux/limits.h>
 #include "config.h"
 
 struct Piphoned_Config_ParsedFile_GeneralTable
@@ -19,7 +19,7 @@ struct Piphoned_Config_ParsedFile
 {
   struct Piphoned_Config_ParsedFile_GeneralTable general;
   struct Piphoned_Config_ParsedFile_ProxyTable* proxies[PIPHONED_MAX_PROXY_NUM];
-  unsigned int num_proxies;
+  int num_proxies;
 };
 
 extern struct Piphoned_Config_ParsedFile g_piphoned_config_info;

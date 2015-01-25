@@ -12,4 +12,3 @@ gid = telefon
 
 # Where to write the PID to.
 pidfile = /var/run/piphoned.pid
-

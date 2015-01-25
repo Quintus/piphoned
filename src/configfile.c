@@ -7,13 +7,13 @@
 
 struct Piphoned_Config_ParsedFile g_piphoned_config_info;
 
-static void piphoned_config_parse_file(FILE* p_file, Piphoned_Config_ParsedFile* p_info);
-static void piphoned_config_parse_ini_separator(const char* line, Piphoned_Config_ParsedFile* p_info);
-static void piphoned_config_parse_ini_line(const char* line, Piphoned_Config_ParsedFile* p_info);
-static void piphoned_config_parse_ini_generalline(const char* line, Piphoned_Config_ParsedFile* p_info);
-static void piphoned_config_parse_ini_proxyline(const char* line, Piphoned_Config_ParsedFile* p_info);
-static void piphoned_config_parse_ini_key(const char* line, char* key, char* value);
-static void piphoned_config_parsed_file_free(Piphoned_Config_ParsedFile* p_file);
+static void piphoned_config_parse_file(FILE* p_file, struct Piphoned_Config_ParsedFile* p_info);
+static void piphoned_config_parse_ini_separator(const char* line, struct Piphoned_Config_ParsedFile* p_info);
+static void piphoned_config_parse_ini_line(const char* line, struct Piphoned_Config_ParsedFile* p_info);
+static void piphoned_config_parse_ini_generalline(const char* line, struct Piphoned_Config_ParsedFile* p_info);
+static void piphoned_config_parse_ini_proxyline(const char* line, struct Piphoned_Config_ParsedFile* p_info);
+static bool piphoned_config_parse_ini_key(const char* line, char* key, char* value);
+static void piphoned_config_parsed_file_free(struct Piphoned_Config_ParsedFile* p_file);
 
 enum Piphoned_Config_ParsedFile_ParseState {
   PIPHONED_CONFIG_PARSED_FILE_STOPPED = 0,     /* Parsing finished */
@@ -23,7 +23,7 @@ enum Piphoned_Config_ParsedFile_ParseState {
 };
 
 /* The current state of the config file parser */
-static Piphoned_Config_ParsedFile_ParseState s_current_parsestate = PIPHONED_CONFIG_PARSED_FILE_STOPPED;
+static enum Piphoned_Config_ParsedFile_ParseState s_current_parsestate = PIPHONED_CONFIG_PARSED_FILE_STOPPED;
 
 /**
  * Initialize the global configuration info. When this function is called,
@@ -59,7 +59,7 @@ void piphoned_config_free()
  * found in `p_info`. This function creates dynamically allocated information
  * that has to be freed with piphoned_config_parsed_file_free().
  */
-void piphoned_config_parse_file(FILE* p_file, Piphoned_Config_ParsedFile* p_info)
+void piphoned_config_parse_file(FILE* p_file, struct Piphoned_Config_ParsedFile* p_info)
 {
   char line[512];
 
@@ -72,7 +72,7 @@ void piphoned_config_parse_file(FILE* p_file, Piphoned_Config_ParsedFile* p_info
     if (line[0] == '[') /* [section] */
       piphoned_config_parse_ini_separator(line, p_info);
     else
-      piphone_config_parse_ini_line(line, p_info);
+      piphoned_config_parse_ini_line(line, p_info);
   }
 }
 
@@ -80,7 +80,7 @@ void piphoned_config_parse_file(FILE* p_file, Piphoned_Config_ParsedFile* p_info
  * Parses the given line as an INI separator and appends a new, dynamically
  * created GeneralTable to `p_info->proxies` (and increments `num_proxies`).
  */
-void piphoned_config_parse_ini_separator(const char* line, Piphoned_Config_ParsedFile* p_info)
+void piphoned_config_parse_ini_separator(const char* line, struct Piphoned_Config_ParsedFile* p_info)
 {
   char sectionname[512];
   size_t length = strlen(line);
@@ -91,32 +91,33 @@ void piphoned_config_parse_ini_separator(const char* line, Piphoned_Config_Parse
   }
 
   memset(sectionname, '\0', 512);
-  strncpy(sectionname, line[1], length - 3); /* => max 510 byte, terminating NUL guaranteed; 3 = "]\n\0" */
+  strncpy(sectionname, line+1, length - 3); /* => max 510 byte, terminating NUL guaranteed; 3 = "]\n\0" */
 
   if (strcmp(sectionname, "General") == 0) {
-    s_current_state = PIPHONED_CONFIG_PARSED_FILE_PARSING_GENERAL;
+    s_current_parsestate = PIPHONED_CONFIG_PARSED_FILE_PARSING_GENERAL;
   }
   else {
-    struct Piphoned_Config_ParsedFile_ProxyTable* p_proxytable = (Piphoned_Config_ParsedFile_ProxyTable*) malloc(sizeof(Piphoned_Config_ParsedFile_ProxyTable));
-    memset(p_proxytable, '\0', sizeof(Piphoned_Config_ParsedFile_ProxyTable));
+    struct Piphoned_Config_ParsedFile_ProxyTable* p_proxytable = (struct Piphoned_Config_ParsedFile_ProxyTable*) malloc(sizeof(struct Piphoned_Config_ParsedFile_ProxyTable));
+    memset(p_proxytable, '\0', sizeof(struct Piphoned_Config_ParsedFile_ProxyTable));
 
     strcpy(p_proxytable->name, sectionname);
     p_info->proxies[p_info->num_proxies++] = p_proxytable;
 
-    s_current_state = PIPHONED_CONFIG_PARSED_FILE_PARSING_PROXY;
+    s_current_parsestate = PIPHONED_CONFIG_PARSED_FILE_PARSING_PROXY;
   }
 }
 
 /**
  * Parses the given line as a setting in the given parser state.
  */
-void piphoned_config_parse_ini_line(const char* line, Piphoned_Config_ParsedFile* p_info)
+void piphoned_config_parse_ini_line(const char* line, struct Piphoned_Config_ParsedFile* p_info)
 {
-  if (line[0] == '#' || line[0] == '\n') /* Ignore comments and empty lines */
+  if (strlen(line) == 0 || line[0] == '#' || line[0] == '\n') /* Ignore comments and empty lines */
     return;
 
-  switch(s_current_state) {
+  switch(s_current_parsestate) {
   case PIPHONED_CONFIG_PARSED_FILE_STARTING:
+    syslog(LOG_WARNING, "Ignoring config file line without section: '%s'", line);
     break; /* Ignore anything before the first section is encountered */
   case PIPHONED_CONFIG_PARSED_FILE_PARSING_GENERAL:
     piphoned_config_parse_ini_generalline(line, p_info);
@@ -125,7 +126,7 @@ void piphoned_config_parse_ini_line(const char* line, Piphoned_Config_ParsedFile
     piphoned_config_parse_ini_proxyline(line, p_info);
     break;
   default:
-    syslog(LOG_WARNING, "Encountered config file line in unexpected state %d", s_current_state);
+    syslog(LOG_WARNING, "Encountered config file line in unexpected state %d", s_current_parsestate);
     break;
   }
 }
@@ -133,12 +134,12 @@ void piphoned_config_parse_ini_line(const char* line, Piphoned_Config_ParsedFile
 /**
  * Parses the given line as a setting in the [General] section.
  */
-void piphoned_config_parse_ini_generalline(const char* line, Piphoned_Config_ParsedFile* p_info)
+void piphoned_config_parse_ini_generalline(const char* line, struct Piphoned_Config_ParsedFile* p_info)
 {
   char key[512];
   char value[512];
 
-  if (!piphoned_config_parse_ini_key(line)) {
+  if (!piphoned_config_parse_ini_key(line, key, value)) {
     syslog(LOG_WARNING, "Ignoring malformed configuration file line '%s'", line);
     return;
   }
@@ -159,12 +160,12 @@ void piphoned_config_parse_ini_generalline(const char* line, Piphoned_Config_Par
 /**
  * Parses the given line as a setting in a Proxy section.
  */
-void piphoned_config_parse_ini_proxyline(const char* line, Piphoned_Config_ParsedFile* p_info)
+void piphoned_config_parse_ini_proxyline(const char* line, struct Piphoned_Config_ParsedFile* p_info)
 {
   char key[512];
   char value[512];
 
-  if (!piphoned_config_parse_ini_key(line)) {
+  if (!piphoned_config_parse_ini_key(line, key, value)) {
     syslog(LOG_WARNING, "Ignoring malformed configuration file line '%s'", line);
     return;
   }
@@ -186,13 +187,13 @@ void piphoned_config_parse_ini_proxyline(const char* line, Piphoned_Config_Parse
 static bool piphoned_config_parse_ini_key(const char* line, char* key, char* value)
 {
   char* equalsign = NULL;
-  char* valstart = NULL;
+  const char* valstart = NULL;
   size_t length = strlen(line);
   size_t i = 0;
   size_t position = 0;
 
   /* Skip all leading whitespace */
-  for(i=0; i < length && line[0] != ' '; line++,i++)
+  for(i=0; i < length && line[0] == ' '; line++,i++)
     ;
 
   if (i == length - 1) {
@@ -217,7 +218,7 @@ static bool piphoned_config_parse_ini_key(const char* line, char* key, char* val
 
   /* Remove trailing whitespace */
   for(i=strlen(key)-1; key[i] == ' '; i--)
-    value[i] = '\0';
+    key[i] = '\0';
 
   if (strlen(key) == 0) {
     syslog(LOG_WARNING, "Found empty key.");
@@ -242,7 +243,7 @@ static bool piphoned_config_parse_ini_key(const char* line, char* key, char* val
   strcpy(value, valstart);
 
   /* Remove trailing whitespace */
-  for(i=strlen(value)-1; value[i] == ' '; i--)
+  for(i=strlen(value)-1; value[i] == ' ' || value[i] == '\n'; i--)
     value[i] = '\0';
 
   return true;
@@ -252,9 +253,11 @@ static bool piphoned_config_parse_ini_key(const char* line, char* key, char* val
  * Frees all dynamically allocated information related to the configuration.
  * The `p_file` pointer itself stays valid.
  */
-void piphoned_config_parsed_file_free(Piphone_Config_ParsedFile* p_file)
+void piphoned_config_parsed_file_free(struct Piphoned_Config_ParsedFile* p_file)
 {
   while (--p_file->num_proxies >= 0) {
     free(p_file->proxies[p_file->num_proxies]);
   }
+
+  p_file->num_proxies = 0; /* recover -1 */
 }

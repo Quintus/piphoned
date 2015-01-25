@@ -29,7 +29,7 @@ int main(int argc, char* argv[])
   /***************************************
    * Config file parsing & initializing
    **************************************/
-  piphoned_config_init("/etc/piphoned.conf"); /* sets g_piphoned_config_info */
+  piphoned_config_init(argv[1]); /* sets g_piphoned_config_info */
 
   /***************************************
    * Cleanup
