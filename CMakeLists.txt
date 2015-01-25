@@ -28,6 +28,10 @@ if (CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -std=c99")
 endif()
 
+if (${CMAKE_BUILD_TYPE} MATCHES Debug)
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_PIPHONED_DEBUG")
+endif()
+
 ########################################
 # Dependencies
 
