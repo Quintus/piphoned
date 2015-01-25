@@ -35,6 +35,7 @@ find_package(PkgConfig REQUIRED)
 find_package(WiringPi REQUIRED)
 pkg_check_modules(Linphone REQUIRED linphone)
 
+string(REPLACE ";" " " Linphone_CFLAGS "${Linphone_CFLAGS}") # WTF? http://www.cmake.org/Bug/view.php?id=12317 is marked as WONTFIX?
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${Linphone_CFLAGS}")
 include_directories(${Linphone_INCLUDE_DIRS} ${WiringPi_INCLUDE_DIR})
 
