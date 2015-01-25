@@ -7,8 +7,8 @@
 [General]
 
 # The target user and group for privilege dropping.
-uid = telefon
-gid = telefon
+uid = 1000
+gid = 1000
 
 # Where to write the PID to.
 pidfile = /var/run/piphoned.pid

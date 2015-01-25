@@ -3,28 +3,33 @@
 #include <linux/limits.h>
 #include "config.h"
 
-struct Piphoned_Config_ParsedFile_GeneralTable
-{
-  int uid;
-  int gid;
-  char pidfile[PATH_MAX];
-};
-
+/**
+ * Configuration data for a single proxy.
+ */
 struct Piphoned_Config_ParsedFile_ProxyTable
 {
   char name[512];
 };
 
+/**
+ * The results of parsing the configuration file.
+ */
 struct Piphoned_Config_ParsedFile
 {
-  struct Piphoned_Config_ParsedFile_GeneralTable general;
-  struct Piphoned_Config_ParsedFile_ProxyTable* proxies[PIPHONED_MAX_PROXY_NUM];
-  int num_proxies;
+  int uid;                /*< User ID to run as */
+  int gid;                /*< Group ID to run as */
+  char pidfile[PATH_MAX]; /*< PID file to write to */
+
+  struct Piphoned_Config_ParsedFile_ProxyTable* proxies[PIPHONED_MAX_PROXY_NUM]; /*< Configuration for the proxies */
+  int num_proxies; /*< Number of proxy configs in `proxies` */
 };
 
+/**
+ * Global variable containing the parsed configuration file.
+ */
 extern struct Piphoned_Config_ParsedFile g_piphoned_config_info;
 
-void piphoned_config_init(const char* configfile);
-void piphoned_config_free();
+void piphoned_config_init(const char* configfile); /*< Read the given configuration file */
+void piphoned_config_free(); /*< Free all dynamically allocated configuration settings */
 
 #endif

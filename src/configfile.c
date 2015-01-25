@@ -78,7 +78,7 @@ void piphoned_config_parse_file(FILE* p_file, struct Piphoned_Config_ParsedFile*
 
 /**
  * Parses the given line as an INI separator and appends a new, dynamically
- * created GeneralTable to `p_info->proxies` (and increments `num_proxies`).
+ * created ProxyTable to `p_info->proxies` (and increments `num_proxies`).
  */
 void piphoned_config_parse_ini_separator(const char* line, struct Piphoned_Config_ParsedFile* p_info)
 {
@@ -147,10 +147,13 @@ void piphoned_config_parse_ini_generalline(const char* line, struct Piphoned_Con
   syslog(LOG_DEBUG, "Configuration keypair in [General] section: '%s' => '%s'", key, value);
 
   if (strcmp(key, "uid") == 0) {
+    p_info->uid = atoi(value);
   }
   else if (strcmp(key, "gid") == 0) {
+    p_info->gid = atoi(value);
   }
   else if (strcmp(key, "pidfile") == 0) {
+    strcpy(p_info->pidfile, value);
   }
   else {
     syslog(LOG_ERR, "Ignoring invalid key '%s' in [General] section of configuration file.", key);
