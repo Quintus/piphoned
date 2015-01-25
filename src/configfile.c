@@ -155,6 +155,9 @@ void piphoned_config_parse_ini_generalline(const char* line, struct Piphoned_Con
   else if (strcmp(key, "pidfile") == 0) {
     strcpy(p_info->pidfile, value);
   }
+  else if (strcmp(key, "hangup_pin") == 0) {
+    p_info->hangup_pin = atoi(value);
+  }
   else {
     syslog(LOG_ERR, "Ignoring invalid key '%s' in [General] section of configuration file.", key);
   }

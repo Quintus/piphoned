@@ -12,3 +12,10 @@ gid = 1000
 
 # Where to write the PID to.
 pidfile = /var/run/piphoned.pid
+
+# This defines the pin where interrupts related to hangup are
+# expected (the lever on top of the phone). The value is a
+# pin number as understood by the wiringPi library (virtual
+# wiringPi number, not broadcom or bare metal numbers); see
+# http://wiringpi.com/pins/.
+hangup_pin = 4

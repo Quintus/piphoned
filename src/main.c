@@ -5,10 +5,13 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <wiringPi.h>
+#include <linphone/linphonecore.h>
 #include "main.h"
 #include "configfile.h"
+#include "hwactions.h"
 
 static int mainloop();
+static void handle_user_input();
 
 int main(int argc, char* argv[])
 {
@@ -128,5 +131,31 @@ int main(int argc, char* argv[])
 
 int mainloop()
 {
+  LinphoneCoreVTable vtable = {0};
+  LinphoneCore* p_linphone = NULL;
+
+  /* TODO: Setup linphone callbacks */
+
+  p_linphone = linphone_core_new(&vtable, NULL, NULL, NULL);
+  piphoned_hwactions_init();
+
+  while(true) {
+    linphone_core_iterate(p_linphone);
+    handle_user_input();
+    ms_usleep(50000);
+  }
+
+  syslog(LOG_NOTICE, "Shutting down.");
+
+  /* TODO: Iterate all the proxies and close them down */
+
+  linphone_core_destroy(p_linphone);
   return 0;
+}
+
+void handle_user_input()
+{
+  if (piphoned_hwactions_has_hangup_triggered()) {
+    syslog(LOG_DEBUG, "Hangup trigger activated.");
+  }
 }
