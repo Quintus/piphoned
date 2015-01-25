@@ -1,7 +1,9 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <syslog.h>
+#include <wiringPi.h>
 #include "main.h"
+#include "configfile.h"
 
 int main(int argc, char* argv[])
 {
