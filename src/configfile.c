@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 #include <syslog.h>
 #include "configfile.h"
 
@@ -9,6 +10,9 @@ struct Piphoned_Config_ParsedFile g_piphoned_config_info;
 static void piphoned_config_parse_file(FILE* p_file, Piphoned_Config_ParsedFile* p_info);
 static void piphoned_config_parse_ini_separator(const char* line, Piphoned_Config_ParsedFile* p_info);
 static void piphoned_config_parse_ini_line(const char* line, Piphoned_Config_ParsedFile* p_info);
+static void piphoned_config_parse_ini_generalline(const char* line, Piphoned_Config_ParsedFile* p_info);
+static void piphoned_config_parse_ini_proxyline(const char* line, Piphoned_Config_ParsedFile* p_info);
+static void piphoned_config_parse_ini_key(const char* line, char* key, char* value);
 static void piphoned_config_parsed_file_free(Piphoned_Config_ParsedFile* p_file);
 
 enum Piphoned_Config_ParsedFile_ParseState {
@@ -90,7 +94,7 @@ void piphoned_config_parse_ini_separator(const char* line, Piphoned_Config_Parse
   strncpy(sectionname, line[1], length - 3); /* => max 510 byte, terminating NUL guaranteed; 3 = "]\n\0" */
 
   if (strcmp(sectionname, "General") == 0) {
-    s_current_state = PIPHONE_CONFIG_PARSED_FILE_PARSING_GENERAL;
+    s_current_state = PIPHONED_CONFIG_PARSED_FILE_PARSING_GENERAL;
   }
   else {
     struct Piphoned_Config_ParsedFile_ProxyTable* p_proxytable = (Piphoned_Config_ParsedFile_ProxyTable*) malloc(sizeof(Piphoned_Config_ParsedFile_ProxyTable));
@@ -99,7 +103,7 @@ void piphoned_config_parse_ini_separator(const char* line, Piphoned_Config_Parse
     strcpy(p_proxytable->name, sectionname);
     p_info->proxies[p_info->num_proxies++] = p_proxytable;
 
-    s_current_state = PIPHONE_CONFIG_PARSED_FILE_PARSING_PROXY;
+    s_current_state = PIPHONED_CONFIG_PARSED_FILE_PARSING_PROXY;
   }
 }
 
@@ -111,7 +115,137 @@ void piphoned_config_parse_ini_line(const char* line, Piphoned_Config_ParsedFile
   if (line[0] == '#' || line[0] == '\n') /* Ignore comments and empty lines */
     return;
 
-  /* TODO: HIER! */
+  switch(s_current_state) {
+  case PIPHONED_CONFIG_PARSED_FILE_STARTING:
+    break; /* Ignore anything before the first section is encountered */
+  case PIPHONED_CONFIG_PARSED_FILE_PARSING_GENERAL:
+    piphoned_config_parse_ini_generalline(line, p_info);
+    break;
+  case PIPHONED_CONFIG_PARSED_FILE_PARSING_PROXY:
+    piphoned_config_parse_ini_proxyline(line, p_info);
+    break;
+  default:
+    syslog(LOG_WARNING, "Encountered config file line in unexpected state %d", s_current_state);
+    break;
+  }
+}
+
+/**
+ * Parses the given line as a setting in the [General] section.
+ */
+void piphoned_config_parse_ini_generalline(const char* line, Piphoned_Config_ParsedFile* p_info)
+{
+  char key[512];
+  char value[512];
+
+  if (!piphoned_config_parse_ini_key(line)) {
+    syslog(LOG_WARNING, "Ignoring malformed configuration file line '%s'", line);
+    return;
+  }
+
+  syslog(LOG_DEBUG, "Configuration keypair in [General] section: '%s' => '%s'", key, value);
+
+  if (strcmp(key, "uid") == 0) {
+  }
+  else if (strcmp(key, "gid") == 0) {
+  }
+  else if (strcmp(key, "pidfile") == 0) {
+  }
+  else {
+    syslog(LOG_ERR, "Ignoring invalid key '%s' in [General] section of configuration file.", key);
+  }
+}
+
+/**
+ * Parses the given line as a setting in a Proxy section.
+ */
+void piphoned_config_parse_ini_proxyline(const char* line, Piphoned_Config_ParsedFile* p_info)
+{
+  char key[512];
+  char value[512];
+
+  if (!piphoned_config_parse_ini_key(line)) {
+    syslog(LOG_WARNING, "Ignoring malformed configuration file line '%s'", line);
+    return;
+  }
+
+  /* TODO */
+}
+
+/**
+ * Parses a single "key = value" line. The results are placed in the given
+ * arguments, where each is required to have a size of at least 512 byte
+ * (more will never be needed).
+ *
+ * \param[in]  line  NUL-terminated line to parse
+ * \param[out] key   Receives the key as a NUL-terminated string.
+ * \param[out] value Receives the value as a NUL-terminated string.
+ *
+ * \returns false on parsing failure, true otherwise.
+ */
+static bool piphoned_config_parse_ini_key(const char* line, char* key, char* value)
+{
+  char* equalsign = NULL;
+  char* valstart = NULL;
+  size_t length = strlen(line);
+  size_t i = 0;
+  size_t position = 0;
+
+  /* Skip all leading whitespace */
+  for(i=0; i < length && line[0] != ' '; line++,i++)
+    ;
+
+  if (i == length - 1) {
+    syslog(LOG_WARNING, "Encountered line containing only whitespace");
+    return false;
+  }
+
+  if ((equalsign = strchr(line, '=')) == NULL) {
+    syslog(LOG_WARNING, "Encountered line without equal sign (=).");
+    return false;
+  }
+
+  position = strcspn(line, "=");
+
+  memset(key, '\0', 512);
+  memset(value, '\0', 512);
+
+  /********************
+   * Part 1: key
+   *******************/
+  strncpy(key, line, position);
+
+  /* Remove trailing whitespace */
+  for(i=strlen(key)-1; key[i] == ' '; i--)
+    value[i] = '\0';
+
+  if (strlen(key) == 0) {
+    syslog(LOG_WARNING, "Found empty key.");
+    return false;
+  }
+
+  /********************
+   * Part 2: value
+   *******************/
+
+  /* Remove leading whitespace */
+  length   = strlen(line + position + 1);
+  valstart = line + position + 1;
+  for(i=0; i < length && valstart[0] == ' '; i++,valstart++)
+    ;
+
+  if (i == length - 1) {
+    syslog(LOG_WARNING, "Found empty value.");
+    return false;
+  }
+
+  strcpy(value, valstart);
+
+  /* Remove trailing whitespace */
+  for(i=strlen(value)-1; value[i] == ' '; i--)
+    value[i] = '\0';
+
+  return true;
 }
 
 /**

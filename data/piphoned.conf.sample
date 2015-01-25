@@ -11,5 +11,5 @@ uid = telefon
 gid = telefon
 
 # Where to write the PID to.
-pidfile = "/var/run/piphoned.pid"
+pidfile = /var/run/piphoned.pid
 
