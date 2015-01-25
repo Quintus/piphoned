@@ -8,11 +8,14 @@
 #include "main.h"
 #include "configfile.h"
 
+static int mainloop();
+
 int main(int argc, char* argv[])
 {
   pid_t childpid = 0;
   pid_t sessionid = 0;
   FILE* file = NULL;
+  int retval = 0;
 
   /* We need root rights to initialize everything. */
   if (getuid() != 0) {
@@ -43,9 +46,10 @@ int main(int argc, char* argv[])
    ***************************************/
 
   childpid = fork();
-  if (childpid < 0) {
+  if (childpid < 0) { /* Error */
     syslog(LOG_CRIT, "Fork failed: %m");
-    return 3;
+    retval = 3;
+    goto finish;
   }
   else if (childpid > 0) { /* Parent */
     syslog(LOG_INFO, "Fork successful. Child PID is %d, going to exit parent process.", childpid);
@@ -56,7 +60,8 @@ int main(int argc, char* argv[])
   sessionid = setsid();
   if (sessionid < 0) {
     syslog(LOG_CRIT, "Failed to acquire session ID.");
-    return 3;
+    retval = 3;
+    goto finish;
   }
 
   umask(0137); /* rw-r----- */
@@ -65,7 +70,8 @@ int main(int argc, char* argv[])
   file = fopen(g_piphoned_config_info.pidfile, "w");
   if (!file) {
     syslog(LOG_CRIT, "Failed to open PID file '%s': %m", g_piphoned_config_info.pidfile);
-    return 3;
+    retval = 3;
+    goto finish;
   }
 
   fprintf(file, "%d", getpid());
@@ -84,20 +90,29 @@ int main(int argc, char* argv[])
 
   if (setgid(g_piphoned_config_info.gid) != 0) {
     syslog(LOG_CRIT, "Failed to drop group privileges: %m. Exiting!");
-    return 3;
+    retval = 3;
+    goto finish;
   }
   if (setuid(g_piphoned_config_info.uid) != 0) {
     syslog(LOG_CRIT, "Failed to drop user privileges: %m. Exiting!");
-    return 3;
+    retval = 3;
+    goto finish;
   }
 
   /* Paranoid extra security check */
   if (setuid(0) != -1) {
     syslog(LOG_CRIT, "Regained root privileges! Exiting!");
-    return 3;
+    retval = 3;
+    goto finish;
   }
 
   syslog(LOG_INFO, "Successfully dropped privileges.");
+
+  /***************************************
+   * Start of real code
+   ***************************************/
+
+  retval = mainloop();
 
   /***************************************
    * Cleanup
@@ -107,4 +122,11 @@ int main(int argc, char* argv[])
   piphoned_config_free();
   syslog(LOG_NOTICE, "Program finished.");
   closelog();
+
+  return retval;
+}
+
+int mainloop()
+{
+  return 0;
 }
