@@ -1,12 +1,19 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <syslog.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <wiringPi.h>
 #include "main.h"
 #include "configfile.h"
 
 int main(int argc, char* argv[])
 {
+  pid_t childpid = 0;
+  pid_t sessionid = 0;
+  FILE* file = NULL;
+
   /* We need root rights to initialize everything. */
   if (getuid() != 0) {
     fprintf(stderr, "This program has to be run as root. Exiting.\n");
@@ -32,9 +39,50 @@ int main(int argc, char* argv[])
   piphoned_config_init(argv[1]); /* sets g_piphoned_config_info */
 
   /***************************************
+   * Daemonising
+   ***************************************/
+
+  childpid = fork();
+  if (childpid < 0) {
+    syslog(LOG_CRIT, "Fork failed: %m");
+    return 3;
+  }
+  else if (childpid > 0) { /* Parent */
+    syslog(LOG_INFO, "Fork successful. Child PID is %d, going to exit parent process.", childpid);
+    goto finish;
+  }
+  /* Child */
+
+  sessionid = setsid();
+  if (sessionid < 0) {
+    syslog(LOG_CRIT, "Failed to acquire session ID.");
+    return 3;
+  }
+
+  umask(0137); /* rw-r----- */
+  chdir("/");
+
+  file = fopen(g_piphoned_config_info.pidfile, "w");
+  if (!file) {
+    syslog(LOG_CRIT, "Failed to open PID file '%s': %m", g_piphoned_config_info.pidfile);
+    return 3;
+  }
+
+  fprintf(file, "%d", getpid());
+  fclose(file);
+
+  /* We have no terminal anymore */
+  close(STDIN_FILENO);
+  close(STDOUT_FILENO);
+  close(STDERR_FILENO);
+
+  syslog(LOG_INFO, "Fork setup completed.");
+
+  /***************************************
    * Cleanup
    **************************************/
 
+ finish:
   piphoned_config_free();
   syslog(LOG_NOTICE, "Program finished.");
   closelog();
