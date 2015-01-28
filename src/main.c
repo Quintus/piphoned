@@ -12,6 +12,7 @@
 #include "main.h"
 #include "configfile.h"
 #include "hwactions.h"
+#include "commandline.h"
 
 static int mainloop();
 void handle_sigterm(int signum);
@@ -30,6 +31,8 @@ int main(int argc, char* argv[])
     fprintf(stderr, "This program has to be run as root. Exiting.\n");
     return 1;
   }
+
+  piphoned_commandline_info_from_argv(argc, argv);
 
   /***************************************
    * Init logger
@@ -53,23 +56,25 @@ int main(int argc, char* argv[])
    * Daemonising
    ***************************************/
 
-  childpid = fork();
-  if (childpid < 0) { /* Error */
-    syslog(LOG_CRIT, "Fork failed: %m");
-    retval = 3;
-    goto finish;
-  }
-  else if (childpid > 0) { /* Parent */
-    syslog(LOG_INFO, "Fork successful. Child PID is %d, going to exit parent process.", childpid);
-    goto finish;
-  }
-  /* Child */
+  if (g_cli_options.daemonize) {
+    childpid = fork();
+    if (childpid < 0) { /* Error */
+      syslog(LOG_CRIT, "Fork failed: %m");
+      retval = 3;
+      goto finish;
+    }
+    else if (childpid > 0) { /* Parent */
+      syslog(LOG_INFO, "Fork successful. Child PID is %d, going to exit parent process.", childpid);
+      goto finish;
+    }
+    /* Child */
 
-  sessionid = setsid();
-  if (sessionid < 0) {
-    syslog(LOG_CRIT, "Failed to acquire session ID.");
-    retval = 3;
-    goto finish;
+    sessionid = setsid();
+    if (sessionid < 0) {
+      syslog(LOG_CRIT, "Failed to acquire session ID.");
+      retval = 3;
+      goto finish;
+    }
   }
 
   umask(0137); /* rw-r----- */
