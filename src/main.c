@@ -155,6 +155,7 @@ int mainloop()
 
   /* TODO: Iterate all the proxies and close them down */
 
+  piphoned_hwactions_free();
   /* linphone_core_destroy(p_linphone); */
 
   return 0;

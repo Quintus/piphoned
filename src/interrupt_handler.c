@@ -1,4 +1,4 @@
-/* The code in this file is heavily inspired by the wiringPi sourcecode,
+/* The code in this file is inspired by the wiringPi sourcecode,
  * although it it not a copy of it. Original wiringPi copyright statement:
  *
  *  wiringPi:
@@ -49,13 +49,17 @@ struct Piphoned_InterruptHandler_Data
   int hardware_pin;               /*< BCM GPIO hardware pin number corresponding to `pin` */
   void (*p_callback)(int, void*); /*< Sub-callback for the user-defined action to take */
   void* p_userdata;               /*< Custom userdata pointer passed through to the sub-callback */
+  bool terminate;                 /*< If set to true, terminate the poll thread. Shared resource! */
 };
 
 static void* device_interrupt_handler(void* arg);
 
+/* Variables for maintaining pin-specific information (there is a
+ * maximum of 64 pins on the Raspberry Pi). */
 static int s_sysfs_fds[64]= { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 };
 static pthread_t s_threads[64];
 static struct Piphoned_InterruptHandler_Data s_interrupt_handler_datas[64];
+static pthread_mutex_t s_termination_mutexes[64];
 
 /**
  * Waits for an interrupt and executes a callback.
@@ -163,6 +167,7 @@ bool piphoned_handle_pin_interrupt(int pin, int edge_type, void (*p_callback)(in
   s_interrupt_handler_datas[hardware_pin].hardware_pin = hardware_pin;
   s_interrupt_handler_datas[hardware_pin].p_callback   = p_callback;
   s_interrupt_handler_datas[hardware_pin].p_userdata   = p_userdata;
+  s_interrupt_handler_datas[hardware_pin].terminate    = false;
 
   syslog(LOG_DEBUG, "Spawning new thread for monitoring the hardware device '%s'", sysfs_path);
   if (pthread_create(&s_threads[hardware_pin], NULL, device_interrupt_handler, &s_interrupt_handler_datas[hardware_pin]) != 0) {
@@ -171,6 +176,48 @@ bool piphoned_handle_pin_interrupt(int pin, int edge_type, void (*p_callback)(in
   }
 
   return true;
+}
+
+/**
+ * Asks the interrupt handler thread for the given pin to terminate
+ * and blocks until the termination has succeeded. This function
+ * cleans up all resources that were acquired for the handler,
+ * so that you can set up a new interrupt handler on the pin
+ * after this function has returned.
+ *
+ * \param pin The pin to terminate the handler for.
+ *
+ * \remark If there is no handler for the given pin, this function
+ * does nothing and immediately returns.
+ */
+void piphoned_terminate_pin_interrupt_handler(int pin)
+{
+  int hardware_pin = wpiPinToGpio(pin);
+
+  /* If the file descriptor for the device node is -1, there is no
+   * handler running */
+  if (s_sysfs_fds[hardware_pin] == -1)
+    return;
+
+  syslog(LOG_DEBUG, "Requesting termination of pin interrupt handler on pin %d (BCM GPIO pin %d)", pin, hardware_pin);
+
+  pthread_mutex_lock(&s_termination_mutexes[hardware_pin]);
+  s_interrupt_handler_datas[hardware_pin].terminate = true;
+  pthread_mutex_unlock(&s_termination_mutexes[hardware_pin]);
+
+  pthread_join(s_threads[hardware_pin], NULL);
+  syslog(LOG_DEBUG, "Interrupt handler on pin %d has terminated. Cleanup.", pin);
+
+  /* At this point, the thread is guaranteed to be terminated. We can
+   * now clean up everything so that it looks like before the interrupt
+   * handler was registered. */
+  memset(&s_threads[hardware_pin], '\0', sizeof(pthread_t));
+  memset(&s_interrupt_handler_datas[hardware_pin], '\0', sizeof(struct Piphoned_InterruptHandler_Data));
+
+  close(s_sysfs_fds[hardware_pin]);
+  s_sysfs_fds[hardware_pin] = -1;
+
+  syslog(LOG_DEBUG, "Cleanup on pin %d finished.", pin);
 }
 
 /**
@@ -188,6 +235,7 @@ void* device_interrupt_handler(void* arg)
   struct pollfd polldata;
   int fd = 0;
   char data;
+  int result = 0;
 
   syslog(LOG_DEBUG, "Spawned thread successfully");
   fd = s_sysfs_fds[p_handler_data->hardware_pin];
@@ -197,14 +245,23 @@ void* device_interrupt_handler(void* arg)
 
   syslog(LOG_DEBUG, "Entering lowlevel interrupt loop for file descriptor %d", fd);
   while(true) {
-    if (poll(&polldata, 1, -1) < 0) {
+    result = 0;
+
+    result = poll(&polldata, 1, 2000);
+    if (result < 0) {
       syslog(LOG_ERR, "Failed to poll() data from pin %d: %m", p_handler_data->pin);
       continue;
     }
+    else if (result == 0) { /* timeout */
+      /* Check termination condition, which is a shared resource */
+      pthread_mutex_lock(&s_termination_mutexes[p_handler_data->hardware_pin]);
 
-    /* TODO: Add timeout to poll() so we can gracefully terminate the thread.
-     * We could malloc() the stuff that is `static' currently and free() it then
-     * on thread termination. */
+      if (p_handler_data->terminate)
+        break;
+
+      pthread_mutex_unlock(&s_termination_mutexes[p_handler_data->hardware_pin]);
+      continue;
+    }
 
     /* We only wait for something to appear. What it is is not important. Read
      * the data, discard it. wiringPi sourcecode comments say it will only ever be
@@ -216,5 +273,6 @@ void* device_interrupt_handler(void* arg)
     p_handler_data->p_callback(p_handler_data->pin, p_handler_data->p_userdata);
   }
 
+  syslog(LOG_DEBUG, "Terminating lowlevel interrupt loop for file descriptor %d", fd);
   return NULL;
 }

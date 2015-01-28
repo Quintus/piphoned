@@ -16,6 +16,7 @@ static void monitor_callback(int pin, void* arg);
  *                   single interrupt and the given callback is executed only
  *                   once instead of being executed for each of these quick
  *                   interrupts.
+ * \param pin        WiringPi pin to create the monitor for.
  * \param[in] p_callback Function pointer to a callback function that shall be
  *                       run when the pin gets triggered (see also `grace_time`
  *                       above). The callback receives the number of the pin
@@ -24,32 +25,49 @@ static void monitor_callback(int pin, void* arg);
  *                       function.
  *
  * \returns the new TriggerMonitor instance.
+ *
+ * \remark Do not use the TriggerMonitor instance for more than one callback.
  */
-struct Piphoned_HwActions_TriggerMonitor* piphoned_hwactions_triggermonitor_new(unsigned long grace_time, void (*p_callback)(int, void*), void* p_userdata)
+struct Piphoned_HwActions_TriggerMonitor* piphoned_hwactions_triggermonitor_new(unsigned long grace_time, int pin, void (*p_callback)(int, void*), void* p_userdata)
 {
   struct Piphoned_HwActions_TriggerMonitor* p_monitor = (struct Piphoned_HwActions_TriggerMonitor*) malloc(sizeof(struct Piphoned_HwActions_TriggerMonitor));
   memset(p_monitor, '\0', sizeof(struct Piphoned_HwActions_TriggerMonitor));
   p_monitor->grace_time = grace_time;
   p_monitor->p_callback = p_callback;
   p_monitor->p_userdata = p_userdata;
+  p_monitor->pin        = pin;
   return p_monitor;
-
-  /* TODO: free() p_monitor somewhere! */
 }
 
 /**
- * Starts the monitoring process with the given monitor for the given pin.
+ * Frees the TriggerMonitor instance. This method blocks until the underlying
+ * thread has terminated.
+ */
+void piphoned_hwactions_triggermonitor_free(struct Piphoned_HwActions_TriggerMonitor* p_monitor)
+{
+  if (p_monitor) {
+    syslog(LOG_DEBUG, "Stopping and freeing monitor on pin %d", p_monitor->pin);
+    piphoned_terminate_pin_interrupt_handler(p_monitor->pin);
+    free(p_monitor);
+  }
+}
+
+/**
+ * Starts the monitoring process with the given monitor for the given change.
  *
  * This method kicks off a separate thread that does the actual watching
  * of the pin. Your callback gets run inside this separate thread, so
  * be sure it only accesses shared resources within a mutex.
  *
  * \param p_monitor Sender.
- * \param pin wiringPi pin number for the pin to watch.
  * \param edgetype One of the `INT_*` parameters also accepted by wiringPiISR().
+ *
+ * \remark Do not pass the same TriggerMonitor instance to different setup() calls.
  */
-void piphoned_hwactions_triggermonitor_setup(const struct Piphoned_HwActions_TriggerMonitor* p_monitor, int pin, int edgetype)
+void piphoned_hwactions_triggermonitor_setup(const struct Piphoned_HwActions_TriggerMonitor* p_monitor, int edgetype)
 {
+  int pin = p_monitor->pin;
+
   /* Ensure predictable pin start state */
   syslog(LOG_DEBUG, "Noramlizing pin state on pin %d", pin);
   pinMode(pin, OUTPUT);
