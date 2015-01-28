@@ -19,12 +19,14 @@ static void hangup_callback();
  */
 void piphoned_hwactions_init()
 {
-  /* Ensure the pins are in a predictable start state */
-  pinMode(g_piphoned_config_info.hangup_pin, OUTPUT);
+  /* TODO: Call piphoned_hwactions_triggermonitor_new() and _setup()
+   * for the target pins */
+    /* Ensure the pins are in a predictable start state */
+  /*pinMode(g_piphoned_config_info.hangup_pin, OUTPUT);
   digitalWrite(g_piphoned_config_info.hangup_pin, LOW);
   pinMode(g_piphoned_config_info.hangup_pin, INPUT);
 
-  wiringPiISR(g_piphoned_config_info.hangup_pin, INT_EDGE_BOTH, hangup_callback);
+  wiringPiISR(g_piphoned_config_info.hangup_pin, INT_EDGE_BOTH, hangup_callback); */
 }
 
 /**
@@ -47,12 +49,24 @@ bool piphoned_hwactions_has_hangup_triggered()
 {
   bool result = false;
 
+  /*
   pthread_mutex_lock(&s_hangup_mutex);
   result = s_hangup_triggered;
-  s_hangup_triggered = false; /* Reset so we will be notified of new hangup triggering */
+  s_hangup_triggered = false; /* Reset so we will be notified of new hangup triggering /
   pthread_mutex_unlock(&s_hangup_mutex);
+  */
 
   return result;
+}
+
+/**
+ * Checks if an URI has been dialed, and if so, places it in the passed argument.
+ * Returns true if an URI was dialed (and placed in the pointer), false
+ * otherwise.
+ */
+bool piphoned_hwactions_has_dialed_uri(char* uri)
+{
+
 }
 
 /**

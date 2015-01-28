@@ -12,7 +12,6 @@
 #include "hwactions.h"
 
 static int mainloop();
-static void handle_user_input();
 
 int main(int argc, char* argv[])
 {
@@ -134,6 +133,7 @@ int mainloop()
 {
   LinphoneCoreVTable vtable = {0};
   LinphoneCore* p_linphone = NULL;
+  char sip_uri[512];
 
   /* TODO: Setup linphone callbacks */
 
@@ -142,7 +142,12 @@ int mainloop()
 
   while(true) {
     /* linphone_core_iterate(p_linphone); */
-    handle_user_input();
+
+    memset(sip_uri, '\0', 512);
+    if (piphoned_hwactions_has_dialed_uri(sip_uri)) {
+      /* piphoned_phone_place_call(p_linphone, sip_uri); */
+    }
+
     ms_usleep(50000);
   }
 
@@ -153,11 +158,4 @@ int mainloop()
   /* linphone_core_destroy(p_linphone); */
 
   return 0;
-}
-
-void handle_user_input()
-{
-  if (piphoned_hwactions_has_hangup_triggered()) {
-    syslog(LOG_DEBUG, "Hangup trigger activated.");
-  }
 }
