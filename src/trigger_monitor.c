@@ -51,10 +51,12 @@ struct Piphoned_HwActions_TriggerMonitor* piphoned_hwactions_triggermonitor_new(
 void piphoned_hwactions_triggermonitor_setup(const struct Piphoned_HwActions_TriggerMonitor* p_monitor, int pin, int edgetype)
 {
   /* Ensure predictable pin start state */
+  syslog(LOG_DEBUG, "Noramlizing pin state on pin %d", pin);
   pinMode(pin, OUTPUT);
   digitalWrite(pin, LOW);
   pinMode(pin, INPUT);
 
+  syslog(LOG_DEBUG, "Registering triggermonitor callback on pin %d", pin);
   if (!piphoned_handle_pin_interrupt(pin, edgetype, monitor_callback, (void*)p_monitor)) /* Discard const. The callback may mondify it. */
     syslog(LOG_ERR, "Failed to setup trigger mointor on pin %d.", pin);
 }
@@ -80,6 +82,7 @@ void monitor_callback(int pin, void* arg)
     goto unlock_mutex;
 
   /* Actual action */
+  syslog(LOG_DEBUG, "Received relevant unfiltered interrupt on pin %d", pin);
   p_monitor->p_callback(pin, p_monitor->p_userdata);
 
   /* Update last timestamp so gracetime check works for next time */

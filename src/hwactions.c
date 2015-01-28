@@ -1,10 +1,12 @@
 #include <time.h>
 #include <stdbool.h>
 #include <pthread.h>
+#include <syslog.h>
 #include <sys/time.h>
 #include <wiringPi.h>
 #include "hwactions.h"
 #include "configfile.h"
+#include "trigger_monitor.h"
 
 static pthread_mutex_t s_hangup_mutex;  /*< Mutex for the hangup callback function */
 static bool s_hangup_triggered = false; /*< true if hangup trigger has been triggered */
@@ -12,7 +14,7 @@ static struct timeval s_hangup_timestamp;
 static unsigned long s_hangup_microseconds_now = 0;
 static unsigned long s_hangup_microseconds_last = 0;
 
-static void hangup_callback();
+static void hangup_callback(int pin, void* arg);
 
 /**
  * Sets up the callbacks for the interrupts on the Raspberry Pi’s pins.
@@ -21,6 +23,10 @@ void piphoned_hwactions_init()
 {
   /* TODO: Call piphoned_hwactions_triggermonitor_new() and _setup()
    * for the target pins */
+
+  struct Piphoned_HwActions_TriggerMonitor* p_monitor = piphoned_hwactions_triggermonitor_new(100000, hangup_callback, NULL);
+  piphoned_hwactions_triggermonitor_setup(p_monitor, g_piphoned_config_info.hangup_pin, INT_EDGE_BOTH);
+
     /* Ensure the pins are in a predictable start state */
   /*pinMode(g_piphoned_config_info.hangup_pin, OUTPUT);
   digitalWrite(g_piphoned_config_info.hangup_pin, LOW);
@@ -66,33 +72,15 @@ bool piphoned_hwactions_has_hangup_triggered()
  */
 bool piphoned_hwactions_has_dialed_uri(char* uri)
 {
-
+  return true;
 }
 
 /**
  * Called each time the hangup trigger connects or disconnects. Runs
  * in a separate thread.
  */
-void hangup_callback()
+void hangup_callback(int pin, void* arg)
 {
-  pthread_mutex_lock(&s_hangup_mutex);
-
-  /* The trigger connects and disconnects in a very short period of time
-   * multiple times. If you hangup, it triggers about 10 times in a single
-   * second, whilst we of course only want to count this as a single hangup
-   * signal. Thus, I use a grace time below that has to pass before we
-   * run this callback’s main code at all again. The exact time that is
-   * waited below has been found by trial&error. */
-  gettimeofday(&s_hangup_timestamp, NULL);
-  s_hangup_microseconds_now = s_hangup_timestamp.tv_sec * 1000000 + s_hangup_timestamp.tv_usec;
-  if (s_hangup_microseconds_now - s_hangup_microseconds_last <= 100000) /* Grace time */
-    goto release_hangup_lock;
-
-  s_hangup_triggered = true;
-
-  /* Update timestamp for our grace time check above */
-  s_hangup_microseconds_last = s_hangup_microseconds_now;
-
- release_hangup_lock:
-  pthread_mutex_unlock(&s_hangup_mutex);
+  syslog(LOG_NOTICE, "Triggered on pin %d!", pin);
+  /* s_hangup_triggered = true; */
 }

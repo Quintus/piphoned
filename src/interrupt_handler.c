@@ -122,6 +122,8 @@ bool piphoned_handle_pin_interrupt(int pin, int edge_type, void (*p_callback)(in
     return false;
   }
 
+  syslog(LOG_DEBUG, "Registering lowlevel interrupt handler on pin %d (BCM GPIO pin %d)", pin, hardware_pin);
+
   /* Set up a /sys device that blocks until data from the outside is available.
    * This is done using the wiringPi gpio program.
    * TODO: Get rid of the external call. */
@@ -131,6 +133,8 @@ bool piphoned_handle_pin_interrupt(int pin, int edge_type, void (*p_callback)(in
 
     memset(command, '\0', 256);
     sprintf(command, "gpio edge %d %s", hardware_pin, modestr);
+
+    syslog(LOG_DEBUG, "Setting up /sys node for kernel interrupt (%s)", command);
 
     if ((status = system(command)) != 0) { /* Single = intended */
       syslog(LOG_ERR, "Executing '%s' failed with status '%d'.", command, status);
@@ -160,6 +164,7 @@ bool piphoned_handle_pin_interrupt(int pin, int edge_type, void (*p_callback)(in
   s_interrupt_handler_datas[hardware_pin].p_callback   = p_callback;
   s_interrupt_handler_datas[hardware_pin].p_userdata   = p_userdata;
 
+  syslog(LOG_DEBUG, "Spawning new thread for monitoring the hardware device '%s'", sysfs_path);
   if (pthread_create(&s_threads[hardware_pin], NULL, device_interrupt_handler, &s_interrupt_handler_datas[hardware_pin]) != 0) {
     syslog(LOG_ERR, "Failed to start interrupt handler thread: %m");
     return false;
@@ -184,11 +189,13 @@ void* device_interrupt_handler(void* arg)
   int fd = 0;
   char data;
 
+  syslog(LOG_DEBUG, "Spawned thread successfully");
   fd = s_sysfs_fds[p_handler_data->hardware_pin];
 
   polldata.fd = fd;
   polldata.events = POLLPRI;
 
+  syslog(LOG_DEBUG, "Entering lowlevel interrupt loop for file descriptor %d", fd);
   while(true) {
     if (poll(&polldata, 1, -1) < 0) {
       syslog(LOG_ERR, "Failed to poll() data from pin %d: %m", p_handler_data->pin);
