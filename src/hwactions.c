@@ -35,7 +35,7 @@ void piphoned_hwactions_init()
   struct Piphoned_HwActions_TriggerMonitor* p_monitor = piphoned_hwactions_triggermonitor_new(100000, g_piphoned_config_info.hangup_pin, hangup_callback, NULL);
   piphoned_hwactions_triggermonitor_setup(p_monitor, INT_EDGE_BOTH);
 
-  struct TriggerMonitorListItem* sp_trigger_monitors = (struct TriggerMonitorListItem*) malloc(sizeof(struct TriggerMonitorListItem));
+  sp_trigger_monitors = (struct TriggerMonitorListItem*) malloc(sizeof(struct TriggerMonitorListItem));
   sp_trigger_monitors->p_monitor = p_monitor;
   sp_trigger_monitors->p_next = NULL;
 }

@@ -1,8 +1,10 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <time.h>
+#include <stdbool.h>
 #include <syslog.h>
 #include <unistd.h>
+#include <signal.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <wiringPi.h>
@@ -12,6 +14,9 @@
 #include "hwactions.h"
 
 static int mainloop();
+void handle_sigterm(int signum);
+
+static volatile bool s_stop_mainloop;
 
 int main(int argc, char* argv[])
 {
@@ -112,6 +117,27 @@ int main(int argc, char* argv[])
   syslog(LOG_INFO, "Successfully dropped privileges.");
 
   /***************************************
+   * Signal handlers
+   ***************************************/
+
+  /* Debian doesn’t have sigaction() yet as it doesn’t yet
+   * implement POSIX.1-2008. */
+  /*
+  struct sigaction term_signal_info;
+  term_signal_info.sa_handler = handle_sigterm;
+  term_signal_info.sa_mask = SIGINT;
+  if (sigaction(SIGTERM, &term_signal_info, NULL) < 0) {
+    syslog(LOG_CRIT, "Failed to setup SIGTERM signal handler: %m");
+    goto finish;
+  }
+  */
+  /* So instead, use deprecated signal() for now. */
+  if (signal(SIGTERM, handle_sigterm) == SIG_ERR) {
+    syslog(LOG_CRIT, "Failed to setup SIGTERM signal handler: %m");
+    goto finish;
+  }
+
+  /***************************************
    * Start of real code
    ***************************************/
 
@@ -135,6 +161,8 @@ int mainloop()
   LinphoneCore* p_linphone = NULL;
   char sip_uri[512];
 
+  s_stop_mainloop = false;
+
   /* TODO: Setup linphone callbacks */
 
   /* p_linphone = linphone_core_new(&vtable, NULL, NULL, NULL); */
@@ -149,9 +177,12 @@ int mainloop()
     }
 
     ms_usleep(50000);
+
+    if (s_stop_mainloop)
+      break;
   }
 
-  syslog(LOG_NOTICE, "Shutting down.");
+  syslog(LOG_NOTICE, "Initiating shutdown.");
 
   /* TODO: Iterate all the proxies and close them down */
 
@@ -159,4 +190,9 @@ int mainloop()
   /* linphone_core_destroy(p_linphone); */
 
   return 0;
+}
+
+void handle_sigterm(int signum)
+{
+  s_stop_mainloop = true;
 }
