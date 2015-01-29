@@ -16,23 +16,78 @@
 
 static int mainloop();
 void handle_sigterm(int signum);
+int command_start();
+int command_stop();
+int command_restart();
 
 static volatile bool s_stop_mainloop;
 
 int main(int argc, char* argv[])
 {
-  pid_t childpid = 0;
-  pid_t sessionid = 0;
-  FILE* file = NULL;
-  int retval = 0;
-
   /* We need root rights to initialize everything. */
   if (getuid() != 0) {
     fprintf(stderr, "This program has to be run as root. Exiting.\n");
     return 1;
   }
 
-  piphoned_commandline_info_from_argv(argc, argv);
+  piphoned_commandline_info_from_argv(argc, argv); /* sets up g_cli_options */
+
+  switch(g_cli_options.command) {
+  case PIPHONED_COMMAND_START:
+    return command_start();
+  case PIPHONED_COMMAND_STOP:
+    return command_stop();
+  case PIPHONED_COMMAND_RESTART:
+    return command_restart();
+  default:
+    fprintf(stderr, "Invalid command %d. This is a bug.\n", g_cli_options.command);
+    return 1;
+  }
+}
+
+int mainloop()
+{
+  LinphoneCoreVTable vtable = {0};
+  LinphoneCore* p_linphone = NULL;
+  char sip_uri[512];
+
+  s_stop_mainloop = false;
+
+  /* TODO: Setup linphone callbacks */
+
+  /* p_linphone = linphone_core_new(&vtable, NULL, NULL, NULL); */
+  piphoned_hwactions_init();
+
+  while(true) {
+    /* linphone_core_iterate(p_linphone); */
+
+    memset(sip_uri, '\0', 512);
+    if (piphoned_hwactions_has_dialed_uri(sip_uri)) {
+      /* piphoned_phone_place_call(p_linphone, sip_uri); */
+    }
+
+    ms_usleep(50000);
+
+    if (s_stop_mainloop)
+      break;
+  }
+
+  syslog(LOG_NOTICE, "Initiating shutdown.");
+
+  /* TODO: Iterate all the proxies and close them down */
+
+  piphoned_hwactions_free();
+  /* linphone_core_destroy(p_linphone); */
+
+  return 0;
+}
+
+int command_start()
+{
+  pid_t childpid = 0;
+  pid_t sessionid = 0;
+  FILE* file = NULL;
+  int retval = 0;
 
   /***************************************
    * Init logger
@@ -50,7 +105,7 @@ int main(int argc, char* argv[])
   /***************************************
    * Config file parsing & initializing
    **************************************/
-  piphoned_config_init(argv[1]); /* sets g_piphoned_config_info */
+  piphoned_config_init(g_cli_options.config_file); /* sets g_piphoned_config_info */
 
   /***************************************
    * Daemonising
@@ -160,40 +215,16 @@ int main(int argc, char* argv[])
   return retval;
 }
 
-int mainloop()
+int command_stop()
 {
-  LinphoneCoreVTable vtable = {0};
-  LinphoneCore* p_linphone = NULL;
-  char sip_uri[512];
-
-  s_stop_mainloop = false;
-
-  /* TODO: Setup linphone callbacks */
-
-  /* p_linphone = linphone_core_new(&vtable, NULL, NULL, NULL); */
-  piphoned_hwactions_init();
-
-  while(true) {
-    /* linphone_core_iterate(p_linphone); */
-
-    memset(sip_uri, '\0', 512);
-    if (piphoned_hwactions_has_dialed_uri(sip_uri)) {
-      /* piphoned_phone_place_call(p_linphone, sip_uri); */
-    }
-
-    ms_usleep(50000);
-
-    if (s_stop_mainloop)
-      break;
-  }
-
-  syslog(LOG_NOTICE, "Initiating shutdown.");
-
-  /* TODO: Iterate all the proxies and close them down */
-
-  piphoned_hwactions_free();
-  /* linphone_core_destroy(p_linphone); */
-
+  /* TODO */
+  printf("Stop.\n");
+  return 0;
+}
+int command_restart()
+{
+  /* TODO */
+  printf("Restart.\n");
   return 0;
 }
 

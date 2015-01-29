@@ -37,6 +37,8 @@ if (${CMAKE_BUILD_TYPE} MATCHES Debug)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -D_PIPHONED_DEBUG")
 endif()
 
+add_definitions("-D_POSIX_C_SOURCE=200809L")
+
 ########################################
 # Dependencies
 

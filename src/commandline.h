@@ -2,13 +2,23 @@
 #define PIPHONED_COMMANDLINE_H
 #include <stdbool.h>
 
-struct Piphoned_CommandlineInfo
+enum Piphoned_Commandline_Command
 {
-  bool daemonize; /*< Do we want to fork()? */
+  PIPHONED_COMMAND_START = 1,
+  PIPHONED_COMMAND_STOP,
+  PIPHONED_COMMAND_RESTART
+};
+
+struct Piphoned_Commandline_Info
+{
+  bool daemonize;          /*< Do we want to fork()? */
+  const char* config_file; /*< Configuration file to load */
+
+  enum Piphoned_Commandline_Command command; /*< Command to run */
 };
 
 void piphoned_commandline_info_from_argv(int argc, char* argv[]);
 
-extern struct Piphoned_CommandlineInfo g_cli_options;
+extern struct Piphoned_Commandline_Info g_cli_options;
 
 #endif
