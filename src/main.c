@@ -140,6 +140,15 @@ int command_start()
   umask(0137); /* rw-r----- */
   chdir("/");
 
+  /* If there is a PID file already, there may be something running.
+   * Reject start. */
+  file = fopen(g_piphoned_config_info.pidfile, "r");
+  if (file) {
+    syslog(LOG_CRIT, "PID file already exists! Exiting.");
+    fclose(file);
+    goto finish;
+  }
+
   file = fopen(g_piphoned_config_info.pidfile, "w");
   if (!file) {
     syslog(LOG_CRIT, "Failed to open PID file '%s': %m", g_piphoned_config_info.pidfile);
@@ -221,8 +230,42 @@ int command_start()
 
 int command_stop()
 {
-  /* TODO */
-  printf("Stop.\n");
+  FILE* p_pidfile = fopen(g_piphoned_config_info.pidfile, "r");
+  char pidstr[16];
+  int pid = 0;
+
+  if (!p_pidfile) {
+    int errcode = errno;
+
+    fprintf(stderr, "Failed to open PID file '%s': %s\n", g_piphoned_config_info.pidfile, strerror(errcode));
+    syslog(LOG_CRIT, "Failed to open PID file '%s': %s", g_piphoned_config_info.pidfile, strerror(errcode));
+
+    return 2;
+  }
+
+  memset(pidstr, '\0', 16);
+  fread(pidstr, 1, 15, p_pidfile); /* Ensure NUL-terminated string */
+  fclose(p_pidfile);
+
+  pid = atoi(pidstr);
+  printf("Sending SIGTERM to process %d\n", pid);
+  syslog(LOG_NOTICE, "Sending SIGTERM to process %d", pid);
+  if (kill(pid, SIGTERM) < 0) {
+    int errcode = errno;
+
+    fprintf(stderr, "Cannot send SIGTERM to process %d: %s\n", pid, strerror(errcode));
+    syslog(LOG_CRIT, "Cannot send SIGTERM to process %d: %s", pid, strerror(errcode));
+
+    return 2;
+  }
+
+  /* Wait for the process to exit */
+  while(kill(pid, 0) == 0)
+    sleep(1);
+
+  /* Clean up PID file. The daemon doesn't have sufficient privileges to do so. */
+  unlink(g_piphoned_config_info.pidfile);
+
   return 0;
 }
 int command_restart()
