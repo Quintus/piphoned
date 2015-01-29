@@ -32,6 +32,12 @@ int main(int argc, char* argv[])
 
   piphoned_commandline_info_from_argv(argc, argv); /* sets up g_cli_options */
 
+  setlogmask(LOG_UPTO(LOG_DEBUG)); /* TODO: Make user-configurable */
+  openlog("piphoned", LOG_CONS | LOG_ODELAY | LOG_PID, LOG_DAEMON);
+  syslog(LOG_DEBUG, "Early startup phase entered.");
+
+  piphoned_config_init(g_cli_options.config_file); /* sets g_piphoned_config_info */
+
   switch(g_cli_options.command) {
   case PIPHONED_COMMAND_START:
     return command_start();
@@ -43,6 +49,9 @@ int main(int argc, char* argv[])
     fprintf(stderr, "Invalid command %d. This is a bug.\n", g_cli_options.command);
     return 1;
   }
+
+  syslog(LOG_DEBUG, "Late termination phase ended.");
+  closelog();
 }
 
 int mainloop()
@@ -89,23 +98,12 @@ int command_start()
   FILE* file = NULL;
   int retval = 0;
 
-  /***************************************
-   * Init logger
-   **************************************/
-
-  setlogmask(LOG_UPTO(LOG_DEBUG)); /* TODO: Make user-configurable */
-  openlog("piphoned", LOG_CONS | LOG_ODELAY | LOG_PID, LOG_DAEMON);
   syslog(LOG_NOTICE, "Starting up.");
 
   /***************************************
    * Initializing libraries
    **************************************/
   wiringPiSetup(); /* Requires root */
-
-  /***************************************
-   * Config file parsing & initializing
-   **************************************/
-  piphoned_config_init(g_cli_options.config_file); /* sets g_piphoned_config_info */
 
   /***************************************
    * Daemonising
@@ -210,7 +208,6 @@ int command_start()
  finish:
   piphoned_config_free();
   syslog(LOG_NOTICE, "Program finished.");
-  closelog();
 
   return retval;
 }
