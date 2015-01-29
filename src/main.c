@@ -268,11 +268,16 @@ int command_stop()
 
   return 0;
 }
+
 int command_restart()
 {
-  /* TODO */
-  printf("Restart.\n");
-  return 0;
+  int retval = 0;
+
+  retval = command_stop();
+  if (retval != 0)
+    return retval;
+
+  return command_start();
 }
 
 void handle_sigterm(int signum)
