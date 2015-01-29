@@ -32,7 +32,7 @@ int main(int argc, char* argv[])
 
   piphoned_commandline_info_from_argv(argc, argv); /* sets up g_cli_options */
 
-  setlogmask(LOG_UPTO(LOG_DEBUG)); /* TODO: Make user-configurable */
+  setlogmask(LOG_UPTO(g_cli_options.loglevel));
   openlog("piphoned", LOG_CONS | LOG_ODELAY | LOG_PID, LOG_DAEMON);
   syslog(LOG_DEBUG, "Early startup phase entered.");
 

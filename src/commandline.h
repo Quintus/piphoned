@@ -13,6 +13,7 @@ struct Piphoned_Commandline_Info
 {
   bool daemonize;          /*< Do we want to fork()? */
   const char* config_file; /*< Configuration file to load */
+  int loglevel;            /*< Syslog log level, from 7 (debug) to 0 (nothing) */
 
   enum Piphoned_Commandline_Command command; /*< Command to run */
 };

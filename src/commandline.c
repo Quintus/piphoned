@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <syslog.h>
 #include "commandline.h"
 
 struct Piphoned_Commandline_Info g_cli_options;
@@ -27,7 +28,7 @@ void piphoned_commandline_info_from_argv(int argc, char* argv[])
 void process_options(int argc, char* argv[])
 {
   int option = 0;
-  while ((option = getopt(argc, argv, "dhc:")) > 0) { /* Single = intended */
+  while ((option = getopt(argc, argv, "dhc:l:")) > 0) { /* Single = intended */
     switch(option) {
     case 'd':
       g_cli_options.daemonize = false;
@@ -37,6 +38,9 @@ void process_options(int argc, char* argv[])
       break;
     case 'c':
       g_cli_options.config_file = optarg;
+      break;
+    case 'l':
+      g_cli_options.loglevel = atoi(optarg);
       break;
     default: /* '?' */
       fprintf(stderr, "Invalid option encountered, see -h.\n");
@@ -69,6 +73,7 @@ void setup_defaults()
 {
   g_cli_options.daemonize = true;
   g_cli_options.config_file = "/etc/piphoned.conf";
+  g_cli_options.loglevel = LOG_NOTICE;
 }
 
 void print_help(const char* progname)
@@ -80,6 +85,7 @@ Options:\n\
 \n\
 -d: Do not fork (for debugging)\n\
 -c FILE: Use FILE as the config file instead of /etc/piphoned.conf\n\
+-l LEVEL: Use LEVEL as the log level. 7 is debug, 0 is basically silence.\n\
 \n\
 COMMAND may be 'start', 'stop', or 'restart'.\n", progname);
   exit(0);
