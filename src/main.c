@@ -24,6 +24,8 @@ static volatile bool s_stop_mainloop;
 
 int main(int argc, char* argv[])
 {
+  int retval = 0;
+
   /* We need root rights to initialize everything. */
   if (getuid() != 0) {
     fprintf(stderr, "This program has to be run as root. Exiting.\n");
@@ -40,11 +42,14 @@ int main(int argc, char* argv[])
 
   switch(g_cli_options.command) {
   case PIPHONED_COMMAND_START:
-    return command_start();
+    retval = command_start();
+    break;
   case PIPHONED_COMMAND_STOP:
-    return command_stop();
+    retval = command_stop();
+    break;
   case PIPHONED_COMMAND_RESTART:
-    return command_restart();
+    retval = command_restart();
+    break;
   default:
     fprintf(stderr, "Invalid command %d. This is a bug.\n", g_cli_options.command);
     return 1;
@@ -52,6 +57,8 @@ int main(int argc, char* argv[])
 
   syslog(LOG_DEBUG, "Late termination phase ended.");
   closelog();
+
+  return retval;
 }
 
 int mainloop()
