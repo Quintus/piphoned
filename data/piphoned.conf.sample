@@ -25,3 +25,7 @@ dial_action_pin = 0
 
 # Pin used for receiving the actual dialed digits.
 dial_count_pin = 1
+
+# Domain appended to the bare numbers dialed. @ is automatically
+# prepended to the domain.
+auto_domain = 1und1.de

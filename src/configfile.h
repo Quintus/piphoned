@@ -22,6 +22,7 @@ struct Piphoned_Config_ParsedFile
   int hangup_pin;         /*< Pin to wait for hangup interrupt on */
   int dial_action_pin;    /*< Pin to check for start/stop number dialing */
   int dial_count_pin;     /*< Pin to check for the actual digits dialed */
+  char auto_domain[PATH_MAX]; /*< Domain to append to numbers dialed */
 
   struct Piphoned_Config_ParsedFile_ProxyTable* proxies[PIPHONED_MAX_PROXY_NUM]; /*< Configuration for the proxies */
   int num_proxies; /*< Number of proxy configs in `proxies` */

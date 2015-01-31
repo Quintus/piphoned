@@ -164,6 +164,9 @@ void piphoned_config_parse_ini_generalline(const char* line, struct Piphoned_Con
   else if (strcmp(key, "dial_count_pin") == 0) {
     p_info->dial_count_pin = atoi(value);
   }
+  else if (strcmp(key, "auto_domain") == 0) {
+    strcpy(p_info->auto_domain, value);
+  }
   else {
     syslog(LOG_ERR, "Ignoring invalid key '%s' in [General] section of configuration file.", key);
   }

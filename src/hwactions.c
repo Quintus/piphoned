@@ -105,7 +105,9 @@ void piphoned_hwactions_free()
  * dialed SIP uri inside `uri`, which is guaranteed to be
  * NUL-terminated and start with the sequence "sip:" (without
  * the quotes). `uri` is not touched if the phone is on the
- * base (i.e. when this method returns false).
+ * base (i.e. when this method returns false). The `auto_domain`
+ * setting from the configuration file is automatically appanded
+ * after an @ sign.
  *
  * Multiple calls to this method will not change anything
  * unless the phone has actually been picked up/hang up
@@ -128,7 +130,7 @@ bool piphoned_hwactions_check_pickup(char* uri)
    * another variable. */
   if (result) {
     memset(uri, '\0', MAX_SIP_URI_LENGTH);
-    sprintf(uri, "sip:%s", s_sip_uri);
+    sprintf(uri, "sip:%s@%s", s_sip_uri, g_piphoned_config_info.auto_domain);
   }
 
   return result;
