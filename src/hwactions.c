@@ -119,7 +119,6 @@ bool piphoned_hwactions_check_pickup(char* uri)
 
   pthread_mutex_lock(&s_isup_mutex);
   result = s_phone_is_up;
-  pthread_mutex_unlock(&s_isup_mutex);
 
   /* While the phone is up (i.e. result is `true' here), the logic
    * in the number-reading callbacks is blocked. That is, `s_sip_uri'
@@ -132,6 +131,8 @@ bool piphoned_hwactions_check_pickup(char* uri)
     memset(uri, '\0', MAX_SIP_URI_LENGTH);
     sprintf(uri, "sip:%s@%s", s_sip_uri, g_piphoned_config_info.auto_domain);
   }
+
+  pthread_mutex_unlock(&s_isup_mutex);
 
   return result;
 }
