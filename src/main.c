@@ -65,7 +65,8 @@ int mainloop()
 {
   LinphoneCoreVTable vtable = {0};
   LinphoneCore* p_linphone = NULL;
-  char sip_uri[512];
+  char sip_uri[512]; /* TODO: Use MAX_SIP_URI_LENGTH (which is not global yet, but in hwactions.c...) */
+  bool is_currently_calling = false;
 
   s_stop_mainloop = false;
 
@@ -77,9 +78,19 @@ int mainloop()
   while(true) {
     /* linphone_core_iterate(p_linphone); */
 
-    memset(sip_uri, '\0', 512);
-    if (piphoned_hwactions_has_dialed_uri(sip_uri)) {
-      /* piphoned_phone_place_call(p_linphone, sip_uri); */
+    if (is_currently_calling) {
+      if (piphoned_hwactions_check_hangup()) {
+        syslog(LOG_NOTICE, "Terminating call.");
+        /* TODO: Linphone stop call */
+        is_currently_calling = false;
+      }
+    }
+    else {
+      if (piphoned_hwactions_check_pickup(sip_uri)) {
+        syslog(LOG_NOTICE, "Dialing SIP URI: %s", sip_uri);
+        /* piphoned_phone_place_call(p_linphone, sip_uri); */
+        is_currently_calling = true;
+      }
     }
 
     ms_usleep(50000);
@@ -146,6 +157,7 @@ int command_start()
   if (file) {
     syslog(LOG_CRIT, "PID file already exists! Exiting.");
     fclose(file);
+    retval = 3;
     goto finish;
   }
 

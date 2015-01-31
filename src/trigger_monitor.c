@@ -64,7 +64,7 @@ void piphoned_hwactions_triggermonitor_free(struct Piphoned_HwActions_TriggerMon
  *
  * \remark Do not pass the same TriggerMonitor instance to different setup() calls.
  */
-void piphoned_hwactions_triggermonitor_setup(const struct Piphoned_HwActions_TriggerMonitor* p_monitor, int edgetype)
+void piphoned_hwactions_triggermonitor_setup(struct Piphoned_HwActions_TriggerMonitor* p_monitor, int edgetype)
 {
   int pin = p_monitor->pin;
 
@@ -74,8 +74,12 @@ void piphoned_hwactions_triggermonitor_setup(const struct Piphoned_HwActions_Tri
   digitalWrite(pin, LOW);
   pinMode(pin, INPUT);
 
+  /* Sometimes an interrupt is triggered right on start. We don't want to count that one. */
+  gettimeofday(&p_monitor->timestamp, NULL);
+  p_monitor->microseconds_last = p_monitor->timestamp.tv_sec * 1000000 + p_monitor->timestamp.tv_usec;
+
   syslog(LOG_DEBUG, "Registering triggermonitor callback on pin %d", pin);
-  if (!piphoned_handle_pin_interrupt(pin, edgetype, monitor_callback, (void*)p_monitor)) /* Discard const. The callback may mondify it. */
+  if (!piphoned_handle_pin_interrupt(pin, edgetype, monitor_callback, p_monitor))
     syslog(LOG_ERR, "Failed to setup trigger mointor on pin %d.", pin);
 }
 

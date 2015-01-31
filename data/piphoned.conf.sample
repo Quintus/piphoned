@@ -19,3 +19,9 @@ pidfile = /var/run/piphoned.pid
 # wiringPi number, not broadcom or bare metal numbers); see
 # http://wiringpi.com/pins/.
 hangup_pin = 4
+
+# Pin used for checking when dialing starts.
+dial_action_pin = 0
+
+# Pin used for receiving the actual dialed digits.
+dial_count_pin = 1

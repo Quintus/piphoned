@@ -16,6 +16,6 @@ struct Piphoned_HwActions_TriggerMonitor {
 
 struct Piphoned_HwActions_TriggerMonitor* piphoned_hwactions_triggermonitor_new(unsigned long grace_time, int pin, void (*p_callback)(int, void*), void* p_userdata);
 void piphoned_hwactions_triggermonitor_free(struct Piphoned_HwActions_TriggerMonitor* p_monitor);
-void piphoned_hwactions_triggermonitor_setup(const struct Piphoned_HwActions_TriggerMonitor* p_monitor, int edgetype);
+void piphoned_hwactions_triggermonitor_setup(struct Piphoned_HwActions_TriggerMonitor* p_monitor, int edgetype);
 
 #endif

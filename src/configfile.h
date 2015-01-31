@@ -19,7 +19,9 @@ struct Piphoned_Config_ParsedFile
   int uid;                /*< User ID to run as */
   int gid;                /*< Group ID to run as */
   char pidfile[PATH_MAX]; /*< PID file to write to */
-  int hangup_pin;         /* Pin to wait for hangup interrupt on */
+  int hangup_pin;         /*< Pin to wait for hangup interrupt on */
+  int dial_action_pin;    /*< Pin to check for start/stop number dialing */
+  int dial_count_pin;     /*< Pin to check for the actual digits dialed */
 
   struct Piphoned_Config_ParsedFile_ProxyTable* proxies[PIPHONED_MAX_PROXY_NUM]; /*< Configuration for the proxies */
   int num_proxies; /*< Number of proxy configs in `proxies` */
