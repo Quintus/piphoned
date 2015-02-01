@@ -80,6 +80,8 @@ int mainloop()
   char sip_uri[512]; /* TODO: Use MAX_SIP_URI_LENGTH (which is not global yet, but in hwactions.c...) */
   char ipv4[512];
   bool is_currently_calling = false;
+  struct timeval timestamp_now;
+  struct timeval timestamp_last;
 
   s_stop_mainloop = false;
 
@@ -139,12 +141,23 @@ int mainloop()
   syslog(LOG_NOTICE, "Initiating shutdown.");
 
   /* TODO: Cater for mulitple proxies */
-  linphone_core_remove_proxy_config(p_linphone, p_proxy);
+  linphone_proxy_config_edit(p_proxy);
+  linphone_proxy_config_enable_register(p_proxy, FALSE);
+  linphone_proxy_config_done(p_proxy);
 
   /* Send deauthentication request(s) */
+  gettimeofday(&timestamp_last, NULL);
   while (linphone_proxy_config_get_state(p_proxy) != LinphoneRegistrationCleared) {
     linphone_core_iterate(p_linphone);
+
     ms_usleep(50000);
+
+    /* If for two minutes nothing happens, terminate anyway. */
+    gettimeofday(&timestamp_now, NULL);
+    if (timestamp_now.tv_sec - timestamp_last.tv_sec >= 20) {/* Debug: 120 would be correct */
+      syslog(LOG_WARNING, "Timeout waiting for SIP proxy to answer unregistration. Quitting anyway.");
+      break;
+    }
   }
 
   /* Linphone documentation says we are not allowed to free proxies
