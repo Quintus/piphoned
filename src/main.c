@@ -8,21 +8,19 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <wiringPi.h>
-#include <curl/curl.h>
 #include <linphone/linphonecore.h>
+#include <curl/curl.h>
 #include "main.h"
 #include "configfile.h"
 #include "hwactions.h"
 #include "commandline.h"
+#include "phone_manager.h"
 
 static int mainloop();
 void handle_sigterm(int signum);
 int command_start();
 int command_stop();
 int command_restart();
-static LinphoneProxyConfig* load_linphone_proxy(LinphoneCore* p_linphone);
-static bool determine_public_ipv4(char* ipv4);
-static size_t get_curl_data(void* buf, size_t size, size_t num_members, void* userdata);
 
 static volatile bool s_stop_mainloop;
 
@@ -260,96 +258,42 @@ int command_restart()
 
 int mainloop()
 {
-  LinphoneCoreVTable vtable = {0};
-  LinphoneCore* p_linphone = NULL;
-  LinphoneProxyConfig* p_proxy = NULL;
   char sip_uri[512]; /* TODO: Use MAX_SIP_URI_LENGTH (which is not global yet, but in hwactions.c...) */
-  char ipv4[512];
-  bool is_currently_calling = false;
-  struct timeval timestamp_now;
-  struct timeval timestamp_last;
+  struct Piphoned_PhoneManager* p_phonemanager = NULL;
 
   s_stop_mainloop = false;
 
-  while (!determine_public_ipv4(ipv4)) {
-    syslog(LOG_INFO, "Failed to retrieve public IPv4. Trying again in 20 seconds.");
-    sleep(20);
-  }
-
-  syslog(LOG_NOTICE, "Determined public IPv4: %s", ipv4);
-
-  /* Output linphone logs to stdout if we have stdout (i.e. we are not forking) */
-  if (!g_cli_options.daemonize) {
-    linphone_core_enable_logs(NULL);
-  }
-
-  /* TODO: Setup linphone callbacks */
-
-  p_linphone = linphone_core_new(&vtable, NULL, NULL, NULL);
-  linphone_core_set_firewall_policy(p_linphone, LinphonePolicyUseNatAddress);
-  linphone_core_set_nat_address(p_linphone, ipv4);
-
-  p_proxy = load_linphone_proxy(p_linphone);
-  if (!p_proxy) {
-    syslog(LOG_CRIT, "Failed to load linphone proxy. Exiting.");
+  p_phonemanager = piphoned_phonemanager_new();
+  if (!piphoned_phonemanager_load_proxies(p_phonemanager)) {
+    syslog(LOG_CRIT, "Failed to load linphone proxies. Exiting.");
     return 4;
   }
-
-  linphone_core_add_proxy_config(p_linphone, p_proxy);
-  linphone_core_set_default_proxy(p_linphone, p_proxy); /* First proxy is default proxy */
 
   piphoned_hwactions_init();
 
   while(true) {
-    linphone_core_iterate(p_linphone);
+    piphoned_phonemanager_update(p_phonemanager);
 
-    if (is_currently_calling) {
+    if (p_phonemanager->is_calling) {
       if (piphoned_hwactions_check_hangup()) {
         syslog(LOG_NOTICE, "Terminating call.");
-        /* TODO: Linphone stop call */
-        is_currently_calling = false;
+        piphoned_phonemanager_stop_call(p_phonemanager);
       }
     }
     else {
       if (piphoned_hwactions_check_pickup(sip_uri)) {
         syslog(LOG_NOTICE, "Dialing SIP URI: %s", sip_uri);
-        /* piphoned_phone_place_call(p_linphone, sip_uri); */
-        is_currently_calling = true;
+        piphoned_phonemanager_place_call(p_phonemanager, sip_uri);
       }
     }
-
-    ms_usleep(50000);
 
     if (s_stop_mainloop)
       break;
   }
 
   syslog(LOG_NOTICE, "Initiating shutdown.");
-
-  /* TODO: Cater for mulitple proxies */
-  linphone_proxy_config_edit(p_proxy);
-  linphone_proxy_config_enable_register(p_proxy, FALSE);
-  linphone_proxy_config_done(p_proxy);
-
-  /* Send deauthentication request(s) */
-  gettimeofday(&timestamp_last, NULL);
-  while (linphone_proxy_config_get_state(p_proxy) != LinphoneRegistrationCleared) {
-    linphone_core_iterate(p_linphone);
-
-    ms_usleep(50000);
-
-    /* If for two minutes nothing happens, terminate anyway. */
-    gettimeofday(&timestamp_now, NULL);
-    if (timestamp_now.tv_sec - timestamp_last.tv_sec >= 20) {/* Debug: 120 would be correct */
-      syslog(LOG_WARNING, "Timeout waiting for SIP proxy to answer unregistration. Quitting anyway.");
-      break;
-    }
-  }
-
-  /* Linphone documentation says we are not allowed to free proxies
-   * that have been removed with linphone_core_remove_proxy_config(). */
+  piphoned_phonemanager_free(p_phonemanager);
   piphoned_hwactions_free();
-  linphone_core_destroy(p_linphone);
 
   return 0;
 }
@@ -357,76 +301,4 @@ int mainloop()
 void handle_sigterm(int signum)
 {
   s_stop_mainloop = true;
-}
-
-LinphoneProxyConfig* load_linphone_proxy(LinphoneCore* p_linphone)
-{
-  LinphoneProxyConfig* p_proxy = NULL;
-  LinphoneAuthInfo* p_auth = NULL;
-  struct Piphoned_Config_ParsedFile_ProxyTable* p_config = g_piphoned_config_info.proxies[0];
-  char str[PATH_MAX];
-
-  /* TODO: Allow multiple proxies */
-  if (g_piphoned_config_info.num_proxies == 0) {
-    syslog(LOG_ERR, "No proxies configured.");
-    return NULL;
-  }
-  else if (g_piphoned_config_info.num_proxies > 1) {
-    syslog(LOG_ERR, "Cannot handle more than one proxy currently.");
-    return NULL;
-  }
-
-  p_proxy = linphone_proxy_config_new();
-  p_auth  = linphone_auth_info_new(p_config->username,
-                                   NULL,
-                                   p_config->password,
-                                   NULL,
-                                   p_config->realm,
-                                   NULL /* g_piphoned_config_info.proxies[0]->domain, */);
-
-  linphone_core_add_auth_info(p_linphone, p_auth); /* Side effect: lets linphone-core manage memory of p_auth */
-
-  memset(str, '\0', PATH_MAX);
-  sprintf(str, "%s <sip:%s@%s>", p_config->displayname, p_config->username, p_config->server);
-  syslog(LOG_INFO, "Using SIP identity for realm %s: %s", str, p_config->realm);
-
-  linphone_proxy_config_set_identity(p_proxy, str);
-  linphone_proxy_config_set_server_addr(p_proxy, p_config->server);
-  linphone_proxy_config_enable_register(p_proxy, TRUE);
-
-  return p_proxy;
-}
-
-size_t get_curl_data(void* buf, size_t size, size_t num_members, void* userdata)
-{
-  char* ipv4 = (char*) userdata;
-  int length = strlen(ipv4);
-
-  memcpy(ipv4 + length, buf, num_members * size);
-
-  return num_members * size;
-}
-
-bool determine_public_ipv4(char* ipv4)
-{
-  CURL* p_handle = NULL;
-  char curlerror[CURL_ERROR_SIZE];
-  memset(ipv4, '\0', 512);
-
-  p_handle = curl_easy_init();
-  curl_easy_setopt(p_handle, CURLOPT_URL, "http://ifconfig.me/ip");
-  curl_easy_setopt(p_handle, CURLOPT_WRITEFUNCTION, get_curl_data);
-  curl_easy_setopt(p_handle, CURLOPT_NOPROGRESS, 1L);
-  curl_easy_setopt(p_handle, CURLOPT_ERRORBUFFER, curlerror);
-  curl_easy_setopt(p_handle, CURLOPT_WRITEDATA, ipv4);
-
-  if (curl_easy_perform(p_handle) != CURLE_OK) {
-    syslog(LOG_WARNING, "libcurl returned error: %s", curlerror);
-    curl_easy_cleanup(p_handle);
-    return false;
-  }
-  else {
-    curl_easy_cleanup(p_handle);
-    return true;
-  }
 }
