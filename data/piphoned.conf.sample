@@ -29,3 +29,16 @@ dial_count_pin = 1
 # Domain appended to the bare numbers dialed. @ is automatically
 # prepended to the domain.
 auto_domain = 1und1.de
+
+# Example provider section. Adapt to your needs.
+[YourProvider]
+
+# User name used for authentication at the provider.
+username = yourusername
+# Password used for authentication.
+password = yourpassword
+# Name of the SIP server to connect to.
+server = yoursipprovider.invalid
+# Authentication realm. This is what the SIP server sends on
+# an authentication query; it is usually identical to the domain.
+realm = yoursipprovider.invalid

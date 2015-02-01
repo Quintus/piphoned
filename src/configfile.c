@@ -102,6 +102,7 @@ void piphoned_config_parse_ini_separator(const char* line, struct Piphoned_Confi
 
     strcpy(p_proxytable->name, sectionname);
     p_info->proxies[p_info->num_proxies++] = p_proxytable;
+    /* TODO: Check we don't exceed PIPHONED_MAX_PROXY_NUM */
 
     s_current_parsestate = PIPHONED_CONFIG_PARSED_FILE_PARSING_PROXY;
   }
@@ -179,13 +180,26 @@ void piphoned_config_parse_ini_proxyline(const char* line, struct Piphoned_Confi
 {
   char key[512];
   char value[512];
+  struct Piphoned_Config_ParsedFile_ProxyTable* p_proxytable = NULL;
 
   if (!piphoned_config_parse_ini_key(line, key, value)) {
     syslog(LOG_WARNING, "Ignoring malformed configuration file line '%s'", line);
     return;
   }
 
-  /* TODO */
+  p_proxytable = p_info->proxies[p_info->num_proxies - 1];
+  syslog(LOG_DEBUG, "Configuration keypair in [%s] section: '%s' => '%s'", p_proxytable->name, key, value);
+
+  if (strcmp(key, "username") == 0)
+    strcpy(p_proxytable->username, value);
+  else if (strcmp(key, "password") == 0)
+    strcpy(p_proxytable->password, value);
+  else if (strcmp(key, "server") == 0)
+    strcpy(p_proxytable->server, value);
+  else if (strcmp(key, "realm") == 0)
+    strcpy(p_proxytable->realm, value);
+  else
+    syslog(LOG_ERR, "Ignoring invalid key '%s' in [%s] section of configuration file.", p_proxytable->name, key);
 }
 
 /**
