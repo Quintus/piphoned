@@ -55,6 +55,7 @@ int main(int argc, char* argv[])
     return 1;
   }
 
+  piphoned_config_free();
   syslog(LOG_DEBUG, "Late termination phase ended.");
   closelog();
 
@@ -234,7 +235,6 @@ int command_start()
    **************************************/
 
  finish:
-  piphoned_config_free();
   syslog(LOG_NOTICE, "Program finished.");
 
   return retval;
