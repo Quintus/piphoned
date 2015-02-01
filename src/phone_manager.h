@@ -6,6 +6,7 @@
 struct Piphoned_PhoneManager {
   LinphoneCoreVTable vtable; /*< Linphone callback table */
   LinphoneCore* p_linphone;  /*< Linphone Core object */
+  LinphoneCall* p_call;      /*< Current call, if any (NULL otherwise) */
   char ipv4[512];            /*< Our public IPv4 */
   bool is_calling;           /*< Is a call in progress? */
 };

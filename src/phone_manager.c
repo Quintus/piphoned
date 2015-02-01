@@ -127,6 +127,15 @@ void piphoned_phonemanager_place_call(struct Piphoned_PhoneManager* p_manager, c
     return;
   }
 
+  p_manager->p_call = linphone_core_invite(p_manager->p_linphone, sip_uri);
+  if (!p_manager->p_call) {
+    syslog(LOG_ERR, "Failed to place call.");
+    return;
+  }
+
+  syslog(LOG_NOTICE, "Started call to '%s'", sip_uri);
+  linphone_call_ref(p_manager->p_call);
+
   /* piphoned_phone_place_call(p_linphone, sip_uri); */
   p_manager->is_calling = true;
 }
@@ -145,6 +154,10 @@ void piphoned_phonemanager_stop_call(struct Piphoned_PhoneManager* p_manager)
   if (!p_manager->is_calling)
     return;
 
+  linphone_core_terminate_call(p_manager->p_linphone, p_manager->p_call);
+  linphone_call_unref(p_manager->p_call);
+
+  p_manager->p_call = NULL;
   p_manager->is_calling = false;
 }
 
