@@ -194,6 +194,8 @@ void piphoned_config_parse_ini_proxyline(const char* line, struct Piphoned_Confi
     strcpy(p_proxytable->username, value);
   else if (strcmp(key, "password") == 0)
     strcpy(p_proxytable->password, value);
+  else if (strcmp(key, "displayname") == 0)
+    strcpy(p_proxytable->displayname, value);
   else if (strcmp(key, "server") == 0)
     strcpy(p_proxytable->server, value);
   else if (strcmp(key, "realm") == 0)

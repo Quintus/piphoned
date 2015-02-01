@@ -37,6 +37,9 @@ auto_domain = 1und1.de
 username = yourusername
 # Password used for authentication.
 password = yourpassword
+# This is what the other party of the call sees when you
+# call it.
+displayname = John Doe
 # Name of the SIP server to connect to.
 server = yoursipprovider.invalid
 # Authentication realm. This is what the SIP server sends on

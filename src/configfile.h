@@ -11,6 +11,7 @@ struct Piphoned_Config_ParsedFile_ProxyTable
   char name[512];        /*< Name of the ini section */
   char username[512];    /*< Username for authentication */
   char password[512];    /*< Password for authentication */
+  char displayname[512]; /*< How your name is displayed to other users */
   char server[PATH_MAX]; /*< SIP server to connect to */
   char realm[PATH_MAX];  /*< Realm the SIP server asks for */
 };
