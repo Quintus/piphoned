@@ -72,102 +72,6 @@ int main(int argc, char* argv[])
   return retval;
 }
 
-int mainloop()
-{
-  LinphoneCoreVTable vtable = {0};
-  LinphoneCore* p_linphone = NULL;
-  LinphoneProxyConfig* p_proxy = NULL;
-  char sip_uri[512]; /* TODO: Use MAX_SIP_URI_LENGTH (which is not global yet, but in hwactions.c...) */
-  char ipv4[512];
-  bool is_currently_calling = false;
-  struct timeval timestamp_now;
-  struct timeval timestamp_last;
-
-  s_stop_mainloop = false;
-
-  while (!determine_public_ipv4(ipv4)) {
-    syslog(LOG_INFO, "Failed to retrieve public IPv4. Trying again in 20 seconds.");
-    sleep(20);
-  }
-
-  syslog(LOG_NOTICE, "Determined public IPv4: %s", ipv4);
-
-  /* Output linphone logs to stdout if we have stdout (i.e. we are not forking) */
-  if (!g_cli_options.daemonize) {
-    linphone_core_enable_logs(NULL);
-  }
-
-  /* TODO: Setup linphone callbacks */
-
-  p_linphone = linphone_core_new(&vtable, NULL, NULL, NULL);
-  linphone_core_set_firewall_policy(p_linphone, LinphonePolicyUseNatAddress);
-  linphone_core_set_nat_address(p_linphone, ipv4);
-
-  p_proxy = load_linphone_proxy(p_linphone);
-  if (!p_proxy) {
-    syslog(LOG_CRIT, "Failed to load linphone proxy. Exiting.");
-    return 4;
-  }
-
-  linphone_core_add_proxy_config(p_linphone, p_proxy);
-  linphone_core_set_default_proxy(p_linphone, p_proxy); /* First proxy is default proxy */
-
-  piphoned_hwactions_init();
-
-  while(true) {
-    linphone_core_iterate(p_linphone);
-
-    if (is_currently_calling) {
-      if (piphoned_hwactions_check_hangup()) {
-        syslog(LOG_NOTICE, "Terminating call.");
-        /* TODO: Linphone stop call */
-        is_currently_calling = false;
-      }
-    }
-    else {
-      if (piphoned_hwactions_check_pickup(sip_uri)) {
-        syslog(LOG_NOTICE, "Dialing SIP URI: %s", sip_uri);
-        /* piphoned_phone_place_call(p_linphone, sip_uri); */
-        is_currently_calling = true;
-      }
-    }
-
-    ms_usleep(50000);
-
-    if (s_stop_mainloop)
-      break;
-  }
-
-  syslog(LOG_NOTICE, "Initiating shutdown.");
-
-  /* TODO: Cater for mulitple proxies */
-  linphone_proxy_config_edit(p_proxy);
-  linphone_proxy_config_enable_register(p_proxy, FALSE);
-  linphone_proxy_config_done(p_proxy);
-
-  /* Send deauthentication request(s) */
-  gettimeofday(&timestamp_last, NULL);
-  while (linphone_proxy_config_get_state(p_proxy) != LinphoneRegistrationCleared) {
-    linphone_core_iterate(p_linphone);
-
-    ms_usleep(50000);
-
-    /* If for two minutes nothing happens, terminate anyway. */
-    gettimeofday(&timestamp_now, NULL);
-    if (timestamp_now.tv_sec - timestamp_last.tv_sec >= 20) {/* Debug: 120 would be correct */
-      syslog(LOG_WARNING, "Timeout waiting for SIP proxy to answer unregistration. Quitting anyway.");
-      break;
-    }
-  }
-
-  /* Linphone documentation says we are not allowed to free proxies
-   * that have been removed with linphone_core_remove_proxy_config(). */
-  piphoned_hwactions_free();
-  linphone_core_destroy(p_linphone);
-
-  return 0;
-}
-
 int command_start()
 {
   pid_t childpid = 0;
@@ -352,6 +256,102 @@ int command_restart()
     return retval;
 
   return command_start();
+}
+
+int mainloop()
+{
+  LinphoneCoreVTable vtable = {0};
+  LinphoneCore* p_linphone = NULL;
+  LinphoneProxyConfig* p_proxy = NULL;
+  char sip_uri[512]; /* TODO: Use MAX_SIP_URI_LENGTH (which is not global yet, but in hwactions.c...) */
+  char ipv4[512];
+  bool is_currently_calling = false;
+  struct timeval timestamp_now;
+  struct timeval timestamp_last;
+
+  s_stop_mainloop = false;
+
+  while (!determine_public_ipv4(ipv4)) {
+    syslog(LOG_INFO, "Failed to retrieve public IPv4. Trying again in 20 seconds.");
+    sleep(20);
+  }
+
+  syslog(LOG_NOTICE, "Determined public IPv4: %s", ipv4);
+
+  /* Output linphone logs to stdout if we have stdout (i.e. we are not forking) */
+  if (!g_cli_options.daemonize) {
+    linphone_core_enable_logs(NULL);
+  }
+
+  /* TODO: Setup linphone callbacks */
+
+  p_linphone = linphone_core_new(&vtable, NULL, NULL, NULL);
+  linphone_core_set_firewall_policy(p_linphone, LinphonePolicyUseNatAddress);
+  linphone_core_set_nat_address(p_linphone, ipv4);
+
+  p_proxy = load_linphone_proxy(p_linphone);
+  if (!p_proxy) {
+    syslog(LOG_CRIT, "Failed to load linphone proxy. Exiting.");
+    return 4;
+  }
+
+  linphone_core_add_proxy_config(p_linphone, p_proxy);
+  linphone_core_set_default_proxy(p_linphone, p_proxy); /* First proxy is default proxy */
+
+  piphoned_hwactions_init();
+
+  while(true) {
+    linphone_core_iterate(p_linphone);
+
+    if (is_currently_calling) {
+      if (piphoned_hwactions_check_hangup()) {
+        syslog(LOG_NOTICE, "Terminating call.");
+        /* TODO: Linphone stop call */
+        is_currently_calling = false;
+      }
+    }
+    else {
+      if (piphoned_hwactions_check_pickup(sip_uri)) {
+        syslog(LOG_NOTICE, "Dialing SIP URI: %s", sip_uri);
+        /* piphoned_phone_place_call(p_linphone, sip_uri); */
+        is_currently_calling = true;
+      }
+    }
+
+    ms_usleep(50000);
+
+    if (s_stop_mainloop)
+      break;
+  }
+
+  syslog(LOG_NOTICE, "Initiating shutdown.");
+
+  /* TODO: Cater for mulitple proxies */
+  linphone_proxy_config_edit(p_proxy);
+  linphone_proxy_config_enable_register(p_proxy, FALSE);
+  linphone_proxy_config_done(p_proxy);
+
+  /* Send deauthentication request(s) */
+  gettimeofday(&timestamp_last, NULL);
+  while (linphone_proxy_config_get_state(p_proxy) != LinphoneRegistrationCleared) {
+    linphone_core_iterate(p_linphone);
+
+    ms_usleep(50000);
+
+    /* If for two minutes nothing happens, terminate anyway. */
+    gettimeofday(&timestamp_now, NULL);
+    if (timestamp_now.tv_sec - timestamp_last.tv_sec >= 20) {/* Debug: 120 would be correct */
+      syslog(LOG_WARNING, "Timeout waiting for SIP proxy to answer unregistration. Quitting anyway.");
+      break;
+    }
+  }
+
+  /* Linphone documentation says we are not allowed to free proxies
+   * that have been removed with linphone_core_remove_proxy_config(). */
+  piphoned_hwactions_free();
+  linphone_core_destroy(p_linphone);
+
+  return 0;
 }
 
 void handle_sigterm(int signum)
