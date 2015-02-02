@@ -260,7 +260,7 @@ LinphoneProxyConfig* load_linphone_proxy(LinphoneCore* p_linphone)
 
   memset(str, '\0', PATH_MAX);
   sprintf(str, "%s <sip:%s@%s>", p_config->displayname, p_config->username, p_config->server);
-  syslog(LOG_INFO, "Using SIP identity for realm %s: %s", str, p_config->realm);
+  syslog(LOG_INFO, "Using SIP identity for realm %s: %s", p_config->realm, str);
 
   linphone_proxy_config_set_identity(p_proxy, str);
   linphone_proxy_config_set_server_addr(p_proxy, p_config->server);
