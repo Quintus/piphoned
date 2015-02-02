@@ -307,16 +307,28 @@ int mainloop()
   while(true) {
     piphoned_phonemanager_update(p_phonemanager);
 
-    if (p_phonemanager->is_calling) {
-      if (piphoned_hwactions_check_hangup()) {
-        syslog(LOG_NOTICE, "Terminating call.");
-        piphoned_phonemanager_stop_call(p_phonemanager);
+    if (p_phonemanager->has_incoming_call) {
+      if (piphoned_hwactions_check_pickup(sip_uri)) { /* sip_uri will be ignored on an incoming call */
+        syslog(LOG_NOTICE, "Accepting call.");
+        piphoned_phonemanager_accept_incoming_call(p_phonemanager);
       }
+      /* TODO: Find a way to input a call decline on the hardware... */
+
+      /* The termination of an accepted incoming call is exactly
+       * the same as of a call that was initiated by us. */
     }
     else {
-      if (piphoned_hwactions_check_pickup(sip_uri)) {
-        syslog(LOG_NOTICE, "Dialing SIP URI: %s", sip_uri);
-        piphoned_phonemanager_place_call(p_phonemanager, sip_uri);
+      if (p_phonemanager->is_calling) {
+        if (piphoned_hwactions_check_hangup()) {
+          syslog(LOG_NOTICE, "Terminating call.");
+          piphoned_phonemanager_stop_call(p_phonemanager);
+        }
+      }
+      else {
+        if (piphoned_hwactions_check_pickup(sip_uri)) {
+          syslog(LOG_NOTICE, "Dialing SIP URI: %s", sip_uri);
+          piphoned_phonemanager_place_call(p_phonemanager, sip_uri);
+        }
       }
     }
 

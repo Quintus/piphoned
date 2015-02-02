@@ -16,6 +16,7 @@ static bool determine_public_ipv4(char* ipv4);
 static size_t get_curl_data(void* buf, size_t size, size_t num_members, void* userdata);
 static LinphoneProxyConfig* load_linphone_proxy(LinphoneCore* p_linphone);
 static void call_state_changed(LinphoneCore* p_linphone, LinphoneCall* p_call, LinphoneCallState cstate, const char *msg);
+static void handle_incoming_call(LinphoneCore* p_linphone, LinphoneCall* p_call);
 
 /**
  * Creates a new PhoneManager. Do not use more than one PhoneManager
@@ -40,7 +41,7 @@ struct Piphoned_PhoneManager* piphoned_phonemanager_new()
   /* Setup linphone callbacks */
   p_manager->vtable.call_state_changed = call_state_changed;
 
-  p_manager->p_linphone = linphone_core_new(&p_manager->vtable, NULL, NULL, NULL);
+  p_manager->p_linphone = linphone_core_new(&p_manager->vtable, NULL, NULL, p_manager);
   linphone_core_set_firewall_policy(p_manager->p_linphone, LinphonePolicyUseNatAddress);
   linphone_core_set_nat_address(p_manager->p_linphone, p_manager->ipv4);
 
@@ -195,6 +196,51 @@ void piphoned_phonemanager_stop_call(struct Piphoned_PhoneManager* p_manager)
   p_manager->is_calling = false;
 }
 
+/**
+ * Accept an incoming call. After this method returns, you can proceed
+ * as if the call was initiated by you using piphoned_phonemanager_place_call().
+ */
+void piphoned_phonemanager_accept_incoming_call(struct Piphoned_PhoneManager* p_manager)
+{
+  if (!p_manager->has_incoming_call) {
+    syslog(LOG_ERR, "Can't accept a call when there is no incoming call.");
+    return;
+  }
+  else if (p_manager->is_calling) {
+    syslog(LOG_ERR, "Can't accept a call when another call is running.");
+    return;
+  }
+
+  linphone_core_accept_call(p_manager->p_linphone, p_manager->p_call);
+
+  /* Now go into the same state as if the call was initiated by us. */
+  p_manager->is_calling = true;
+  p_manager->has_incoming_call = false;
+}
+
+/**
+ * Decline an incoming call. After this method returns, you can proceed
+ * as if the call was terminated by you using piphoned_phonemanager_stop_call().
+ */
+void piphoned_phonemanager_decline_incoming_call(struct Piphoned_PhoneManager* p_manager)
+{
+  if (!p_manager->has_incoming_call) {
+    syslog(LOG_ERR, "Can't decline a call when there is no incoming call.");
+    return;
+  }
+  else if (p_manager->is_calling) {
+    syslog(LOG_ERR, "Can't decline a call when another call is running.");
+    return;
+  }
+
+  linphone_core_decline_call(p_manager->p_linphone, p_manager->p_call, LinphoneReasonDeclined);
+
+  /* Now go into the same state as if the call was terminated by us. */
+  linphone_call_unref(p_manager->p_call);
+  p_manager->has_incoming_call = false;
+  p_manager->p_call = NULL;
+}
+
 /***************************************
  * Private helpers
  ***************************************/
@@ -286,8 +332,29 @@ void call_state_changed(LinphoneCore* p_linphone, LinphoneCall* p_call, Linphone
   case LinphoneCallError:
     syslog(LOG_WARNING, "Failed to establish call.");
     break;
+  case LinphoneCallIncomingReceived:
+    handle_incoming_call(p_linphone, p_call);
   default:
     syslog(LOG_DEBUG, "Unhandled notification on call: %i", cstate);
     break;
   }
+}
+
+static void handle_incoming_call(LinphoneCore* p_linphone, LinphoneCall* p_call)
+{
+  struct Piphoned_PhoneManager* p_manager = (struct Piphoned_PhoneManager*) linphone_core_get_user_data(p_linphone);
+  char* straddr = linphone_call_get_remote_address_as_string(p_call);
+  syslog(LOG_NOTICE, "Incoming call from %s", straddr);
+  free(straddr);
+
+  /* Deny calls while busy. We can’t have two calls at once. */
+  if (p_manager->is_calling) {
+    syslog(LOG_NOTICE, "Denying incoming call while another call is active.");
+    linphone_core_decline_call(p_linphone, p_call, LinphoneReasonBusy);
+    return;
+  }
+
+  p_manager->p_call = p_call;
+  p_manager->has_incoming_call = true;
+  linphone_call_ref(p_call);
 }
