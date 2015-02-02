@@ -30,6 +30,13 @@ dial_count_pin = 1
 # prepended to the domain.
 auto_domain = 1und1.de
 
+# Define the ALSA devices to use for executing a call.
+# You can find these names with the `piphoned-soundcards'
+# program.
+ring_sound_device = linphone_device_name
+playback_sound_device = linphone_device_name
+capture_sound_device = linphone_device_name
+
 # Example provider section. Adapt to your needs.
 [YourProvider]
 

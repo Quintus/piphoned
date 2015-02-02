@@ -168,6 +168,15 @@ void piphoned_config_parse_ini_generalline(const char* line, struct Piphoned_Con
   else if (strcmp(key, "auto_domain") == 0) {
     strcpy(p_info->auto_domain, value);
   }
+  else if (strcmp(key, "ring_sound_device") == 0) {
+    strcpy(p_info->ring_sound_device, value);
+  }
+  else if (strcmp(key, "playback_sound_device") == 0) {
+    strcpy(p_info->playback_sound_device, value);
+  }
+  else if (strcmp(key, "capture_sound_device") == 0) {
+    strcpy(p_info->capture_sound_device, value);
+  }
   else {
     syslog(LOG_ERR, "Ignoring invalid key '%s' in [General] section of configuration file.", key);
   }

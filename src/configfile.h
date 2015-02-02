@@ -28,6 +28,9 @@ struct Piphoned_Config_ParsedFile
   int dial_action_pin;    /*< Pin to check for start/stop number dialing */
   int dial_count_pin;     /*< Pin to check for the actual digits dialed */
   char auto_domain[PATH_MAX]; /*< Domain to append to numbers dialed */
+  char ring_sound_device[512];     /*< Name of the ALSA device used for the ring tone */
+  char playback_sound_device[512]; /*< Name of the ALSA device used for playback */
+  char capture_sound_device[512];  /*< Name of the ALSA device used for capture */
 
   struct Piphoned_Config_ParsedFile_ProxyTable* proxies[PIPHONED_MAX_PROXY_NUM]; /*< Configuration for the proxies */
   int num_proxies; /*< Number of proxy configs in `proxies` */
