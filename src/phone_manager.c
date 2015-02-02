@@ -40,9 +40,33 @@ struct Piphoned_PhoneManager* piphoned_phonemanager_new()
   linphone_core_set_firewall_policy(p_manager->p_linphone, LinphonePolicyUseNatAddress);
   linphone_core_set_nat_address(p_manager->p_linphone, p_manager->ipv4);
 
+  /* Setup the sound devices */
+  if (!linphone_core_sound_device_can_capture(p_manager->p_linphone, g_piphoned_config_info.capture_sound_device)) {
+    syslog(LOG_CRIT, "Sound device set as capture device (%s) cannot capture sound!", g_piphoned_config_info.capture_sound_device);
+    goto fail;
+  }
+  if (!linphone_core_sound_device_can_playback(p_manager->p_linphone, g_piphoned_config_info.playback_sound_device)) {
+    syslog(LOG_CRIT, "Sound device set as playback device (%s) cannot playback sound!", g_piphoned_config_info.playback_sound_device);
+    goto fail;
+  }
+  if (!linphone_core_sound_device_can_playback(p_manager->p_linphone, g_piphoned_config_info.ring_sound_device)) {
+    syslog(LOG_CRIT, "Sound device set as ringer device (%s) cannot playback sound!", g_piphoned_config_info.ring_sound_device);
+    goto fail;
+  }
+
+  linphone_core_set_ringer_device(p_manager->p_linphone, g_piphoned_config_info.ring_sound_device);
+  linphone_core_set_playback_device(p_manager->p_linphone, g_piphoned_config_info.playback_sound_device);
+  linphone_core_set_capture_device(p_manager->p_linphone, g_piphoned_config_info.capture_sound_device);
+
   /* TODO: Setup linphone callbacks */
 
   return p_manager;
+
+ fail:
+
+  linphone_core_destroy(p_manager->p_linphone);
+  free(p_manager);
+  return NULL;
 }
 
 /**

@@ -264,6 +264,10 @@ int mainloop()
   s_stop_mainloop = false;
 
   p_phonemanager = piphoned_phonemanager_new();
+  if (!p_phonemanager) {
+    syslog(LOG_CRIT, "Failed to set up phone manager. Exiting.");
+    return 4;
+  }
   if (!piphoned_phonemanager_load_proxies(p_phonemanager)) {
     syslog(LOG_CRIT, "Failed to load linphone proxies. Exiting.");
     return 4;
