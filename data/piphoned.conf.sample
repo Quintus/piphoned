@@ -10,6 +10,12 @@
 uid = 1000
 gid = 1000
 
+# The group we have to be a member of in order to use sound devices
+# at all. On many systems this is 'audio'. If your system does
+# not have such a group, just leave it set as 'audio'; it will only
+# result in a warning message to the syslog.
+audiogroup = audio
+
 # Where to write the PID to.
 pidfile = /var/run/piphoned.pid
 

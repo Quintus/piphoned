@@ -7,6 +7,7 @@
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <grp.h>
 #include <wiringPi.h>
 #include <linphone/linphonecore.h>
 #include <curl/curl.h>
@@ -142,6 +143,19 @@ int command_start()
   /***************************************
    * Privilege dropping
    ***************************************/
+
+  /* On several systems, you have to be in the audio group to access
+   * the sound devices. If you aren't liblinphone will just report
+   * your sound devices as dysfunctional. */
+  if (g_piphoned_config_info.audiogroup == -1) {
+    syslog(LOG_WARNING, "The group specified as 'audiogroup' in the configuration file doesn't exist. Assuming membership in this group is not needed for access to sound devices; if sound devices are reported as failing although you know they work, the group might be named different on your system (see 'audiogroup' setting in the configuration file).");
+  }
+  else {
+    gid_t audiogroup[1];
+    audiogroup[0] = g_piphoned_config_info.audiogroup;
+    syslog(LOG_INFO, "For accessing audio devices, membership in group %d appears to be required. Adding ourselves in.", g_piphoned_config_info.audiogroup);
+    setgroups(1, audiogroup);
+  }
 
   if (setgid(g_piphoned_config_info.gid) != 0) {
     syslog(LOG_CRIT, "Failed to drop group privileges: %m. Exiting!");

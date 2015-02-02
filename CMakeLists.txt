@@ -38,6 +38,7 @@ if (${CMAKE_BUILD_TYPE} MATCHES Debug)
 endif()
 
 add_definitions("-D_POSIX_C_SOURCE=200809L")
+add_definitions("-D_BSD_SOURCE=1")
 
 ########################################
 # Dependencies

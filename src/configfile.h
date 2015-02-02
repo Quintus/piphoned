@@ -23,6 +23,7 @@ struct Piphoned_Config_ParsedFile
 {
   int uid;                /*< User ID to run as */
   int gid;                /*< Group ID to run as */
+  int audiogroup;         /*< Group ID of the audio access group */
   char pidfile[PATH_MAX]; /*< PID file to write to */
   int hangup_pin;         /*< Pin to wait for hangup interrupt on */
   int dial_action_pin;    /*< Pin to check for start/stop number dialing */

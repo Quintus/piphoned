@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <syslog.h>
 #include "configfile.h"
+#include "userinfo.h"
 
 struct Piphoned_Config_ParsedFile g_piphoned_config_info;
 
@@ -176,6 +177,9 @@ void piphoned_config_parse_ini_generalline(const char* line, struct Piphoned_Con
   }
   else if (strcmp(key, "capture_sound_device") == 0) {
     strcpy(p_info->capture_sound_device, value);
+  }
+  else if (strcmp(key, "audiogroup") == 0) {
+    p_info->audiogroup = piphoned_userinfo_get_gid(value);
   }
   else {
     syslog(LOG_ERR, "Ignoring invalid key '%s' in [General] section of configuration file.", key);

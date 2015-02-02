@@ -54,9 +54,15 @@ struct Piphoned_PhoneManager* piphoned_phonemanager_new()
     goto fail;
   }
 
+  syslog(LOG_INFO, "All sound devices reported as working by liblinphone.");
+
   linphone_core_set_ringer_device(p_manager->p_linphone, g_piphoned_config_info.ring_sound_device);
   linphone_core_set_playback_device(p_manager->p_linphone, g_piphoned_config_info.playback_sound_device);
   linphone_core_set_capture_device(p_manager->p_linphone, g_piphoned_config_info.capture_sound_device);
+
+  syslog(LOG_INFO, "Ringer device: %s", g_piphoned_config_info.ring_sound_device);
+  syslog(LOG_INFO, "Playback device: %s", g_piphoned_config_info.playback_sound_device);
+  syslog(LOG_INFO, "Capture device: %s", g_piphoned_config_info.capture_sound_device);
 
   /* TODO: Setup linphone callbacks */
 
