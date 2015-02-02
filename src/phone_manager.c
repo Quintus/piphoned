@@ -159,6 +159,10 @@ void piphoned_phonemanager_place_call(struct Piphoned_PhoneManager* p_manager, c
     syslog(LOG_WARNING, "Ignoring attempt to call while a call is running.");
     return;
   }
+  if (strlen(sip_uri) == 0) {
+    syslog(LOG_ERR, "Will not dial an empty SIP URI.");
+    return;
+  }
 
   p_manager->p_call = linphone_core_invite(p_manager->p_linphone, sip_uri);
   if (!p_manager->p_call) {

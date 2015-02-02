@@ -168,9 +168,16 @@ void hangup_callback(int pin, void* arg)
   if (s_is_reading_hwdigit) {
     /* The phone has been picked up WHILE using the ring. This should never happen
      * unless a user can manage this in his brain. */
+    /* Somehow it seems that there’s an interrupt on the dial pin without a
+     * real reason. Then we get here also. Thus, forcibly end dialing and
+     * reset the SIP URI to ensure a clean state. */
+    syslog(LOG_ERR, "received pickup while dialing! This should not have happened; resetting.");
+    s_is_reading_hwdigit = false;
     pthread_mutex_unlock(&s_hwdigit_mutex);
-    syslog(LOG_CRIT, "Don't know how to handle pickup while dialing!");
-    exit(5);
+    pthread_mutex_lock(&s_isup_mutex);
+    memset(s_sip_uri, '\0', MAX_SIP_URI_LENGTH);
+    s_phone_is_up = true; /* In 99% of the cases the phone is on the base when the unexpected interrupt happens, that must suffice. We get here when the user picks up the phone again. */
+    pthread_mutex_unlock(&s_isup_mutex);
     return;
   }
   pthread_mutex_unlock(&s_hwdigit_mutex);
