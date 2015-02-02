@@ -31,6 +31,7 @@ static bool s_is_reading_hwdigit = false; /* Are we dialing a digit right now? S
 static int s_hwdigit = -1; /* Current dialed digit. Shared, but only sequencially in different threads. */
 static char s_sip_uri[MAX_SIP_URI_LENGTH];
 static bool s_phone_is_up = false; /* Has the phone been picked up? Shared resource! */
+static struct timeval s_hangup_timestamp;
 
 /* This mutex protects the access to s_is_reading_hwdigit. */
 static pthread_mutex_t s_hwdigit_mutex;
@@ -47,6 +48,7 @@ static void dial_count_callback(int pin, void* arg);
 void piphoned_hwactions_init()
 {
   memset(s_sip_uri, '\0', MAX_SIP_URI_LENGTH);
+  gettimeofday(&s_hangup_timestamp, NULL);
 
   /* The grace time values used in this function as the first argument
    * to piphoned_hwactions_triggermonitor_new() describe the timespan
@@ -160,6 +162,8 @@ bool piphoned_hwactions_check_hangup()
  */
 void hangup_callback(int pin, void* arg)
 {
+  struct timeval timestamp;
+
   pthread_mutex_lock(&s_hwdigit_mutex);
   if (s_is_reading_hwdigit) {
     /* The phone has been picked up WHILE using the ring. This should never happen
@@ -172,6 +176,15 @@ void hangup_callback(int pin, void* arg)
   pthread_mutex_unlock(&s_hwdigit_mutex);
 
   pthread_mutex_lock(&s_isup_mutex);
+  /* Handling the phone is not as clear as one possibly thinks.
+   * Hanging up for example may actually trigger the trigger
+   * two or three times. We don’t want this to cause a new call. */
+  gettimeofday(&timestamp, NULL);
+  if (timestamp.tv_sec - s_hangup_timestamp.tv_sec < 3) {
+    pthread_mutex_unlock(&s_isup_mutex);
+    return;
+  }
+
   if (s_phone_is_up) {
     syslog(LOG_DEBUG, "Phone hung up.");
     /* Reset the SIP URI for the next call. Note that before we set `s_phone_is_up'
@@ -183,6 +196,8 @@ void hangup_callback(int pin, void* arg)
     syslog(LOG_DEBUG, "Phone picked up.");
     s_phone_is_up = true;
   }
+
+  gettimeofday(&s_hangup_timestamp, NULL); /* Update time for check above */
   pthread_mutex_unlock(&s_isup_mutex);
 }
 
