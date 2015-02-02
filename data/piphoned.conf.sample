@@ -7,8 +7,8 @@
 [General]
 
 # The target user and group for privilege dropping.
-uid = 1000
-gid = 1000
+uid = telefon
+gid = telefon
 
 # The group we have to be a member of in order to use sound devices
 # at all. On many systems this is 'audio'. If your system does

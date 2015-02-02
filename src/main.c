@@ -157,6 +157,17 @@ int command_start()
     setgroups(1, audiogroup);
   }
 
+  if (g_piphoned_config_info.gid < 0) {
+    syslog(LOG_CRIT, "Invalid gid specified in configuration file. Exiting!");
+    retval = 3;
+    goto finish;
+  }
+  if (g_piphoned_config_info.uid < 0) {
+    syslog(LOG_CRIT, "Invalid uid specified in configuration file. Exiting!");
+    retval = 3;
+    goto finish;
+  }
+
   if (setgid(g_piphoned_config_info.gid) != 0) {
     syslog(LOG_CRIT, "Failed to drop group privileges: %m. Exiting!");
     retval = 3;
@@ -175,7 +186,7 @@ int command_start()
     goto finish;
   }
 
-  syslog(LOG_INFO, "Successfully dropped privileges.");
+  syslog(LOG_INFO, "Successfully dropped privileges to UID %d and GID %d.", g_piphoned_config_info.uid, g_piphoned_config_info.gid);
 
   /***************************************
    * Signal handlers

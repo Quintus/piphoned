@@ -149,10 +149,10 @@ void piphoned_config_parse_ini_generalline(const char* line, struct Piphoned_Con
   syslog(LOG_DEBUG, "Configuration keypair in [General] section: '%s' => '%s'", key, value);
 
   if (strcmp(key, "uid") == 0) {
-    p_info->uid = atoi(value);
+    p_info->uid = piphoned_userinfo_get_uid(value);
   }
   else if (strcmp(key, "gid") == 0) {
-    p_info->gid = atoi(value);
+    p_info->gid = piphoned_userinfo_get_gid(value);
   }
   else if (strcmp(key, "pidfile") == 0) {
     strcpy(p_info->pidfile, value);
