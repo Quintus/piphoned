@@ -32,6 +32,7 @@ static int s_hwdigit = -1; /* Current dialed digit. Shared, but only sequenciall
 static char s_sip_uri[MAX_SIP_URI_LENGTH];
 static bool s_phone_is_up = false; /* Has the phone been picked up? Shared resource! */
 static struct timeval s_hangup_timestamp;
+static struct timeval s_dial_timestamp;
 
 /* This mutex protects the access to s_is_reading_hwdigit. */
 static pthread_mutex_t s_hwdigit_mutex;
@@ -49,6 +50,7 @@ void piphoned_hwactions_init()
 {
   memset(s_sip_uri, '\0', MAX_SIP_URI_LENGTH);
   gettimeofday(&s_hangup_timestamp, NULL);
+  gettimeofday(&s_dial_timestamp, NULL);
 
   /* The grace time values used in this function as the first argument
    * to piphoned_hwactions_triggermonitor_new() describe the timespan
@@ -223,6 +225,22 @@ static void dial_action_callback(int pin, void* arg)
   /* Signal start/stop of reading a single digit */
   pthread_mutex_lock(&s_hwdigit_mutex);
 
+  /* Sometimes there is an interrupt on the dial action pin although it shouldn't.
+   * Nobody touched it, it just happens. In that case s_reading_digit is set to
+   * true, as if someone started inputting a digit. However, digit input will
+   * most likely never take longer than a few seconds, hence, if we detect that
+   * since the start of the inputting a suspiciously large number of seconds
+   * has passed, we ignore that and instead treat the new interrupt as the
+   * start of a digit. */
+  if (s_is_reading_hwdigit) {
+    struct timeval timestamp;
+    gettimeofday(&timestamp, NULL);
+    if (timestamp.tv_sec - s_dial_timestamp.tv_sec > 10) {
+      syslog(LOG_WARNING, "Suspiciously large time difference between the last two digit input interrupts detected. Treating this interrupt as a digit start instead of a digit end.");
+      s_is_reading_hwdigit = false;
+    }
+  }
+
   if (s_is_reading_hwdigit) {
     int length = 0;
 
@@ -246,6 +264,7 @@ static void dial_action_callback(int pin, void* arg)
     s_is_reading_hwdigit = true;
   }
 
+  gettimeofday(&s_dial_timestamp, NULL);
   pthread_mutex_unlock(&s_hwdigit_mutex);
 }
 
