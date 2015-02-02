@@ -109,10 +109,14 @@ int command_start()
       goto finish;
     }
 
-    /* We have no terminal anymore */
+    /* We have no terminal anymore. Linphone has a bug when stdout is
+     * not available: it goes to 100% CPU usage immediately. Hence, we
+     * just make stdout write into /dev/null (rather than close() it),
+     * where it can write into whatever it deems useful.  For
+     * symmetry, we also put stderr there. */
     close(STDIN_FILENO);
-    close(STDOUT_FILENO);
-    close(STDERR_FILENO);
+    freopen("/dev/null", "w", stdout);
+    freopen("/dev/null", "w", stderr);
   }
 
   umask(0137); /* rw-r----- */
