@@ -15,6 +15,7 @@
 static bool determine_public_ipv4(char* ipv4);
 static size_t get_curl_data(void* buf, size_t size, size_t num_members, void* userdata);
 static LinphoneProxyConfig* load_linphone_proxy(LinphoneCore* p_linphone);
+static void call_state_changed(LinphoneCore* p_linphone, LinphoneCall* p_call, LinphoneCallState cstate, const char *msg);
 
 /**
  * Creates a new PhoneManager. Do not use more than one PhoneManager
@@ -35,6 +36,9 @@ struct Piphoned_PhoneManager* piphoned_phonemanager_new()
   /* Output linphone logs to stdout if we have stdout (i.e. we are not forking) */
   if (!g_cli_options.daemonize)
     linphone_core_enable_logs(NULL);
+
+  /* Setup linphone callbacks */
+  p_manager->vtable.call_state_changed = call_state_changed;
 
   p_manager->p_linphone = linphone_core_new(&p_manager->vtable, NULL, NULL, NULL);
   linphone_core_set_firewall_policy(p_manager->p_linphone, LinphonePolicyUseNatAddress);
@@ -63,8 +67,6 @@ struct Piphoned_PhoneManager* piphoned_phonemanager_new()
   syslog(LOG_INFO, "Ringer device: %s", g_piphoned_config_info.ring_sound_device);
   syslog(LOG_INFO, "Playback device: %s", g_piphoned_config_info.playback_sound_device);
   syslog(LOG_INFO, "Capture device: %s", g_piphoned_config_info.capture_sound_device);
-
-  /* TODO: Setup linphone callbacks */
 
   return p_manager;
 
@@ -265,4 +267,25 @@ LinphoneProxyConfig* load_linphone_proxy(LinphoneCore* p_linphone)
   linphone_proxy_config_enable_register(p_proxy, TRUE);
 
   return p_proxy;
+}
+
+void call_state_changed(LinphoneCore* p_linphone, LinphoneCall* p_call, LinphoneCallState cstate, const char *msg)
+{
+  switch (cstate) {
+  case LinphoneCallOutgoingRinging:
+    syslog(LOG_DEBUG, "Remote device is ringing.");
+    break;
+  case LinphoneCallConnected:
+    syslog(LOG_DEBUG, "Connection established.");
+    break;
+  case LinphoneCallEnd:
+    syslog(LOG_DEBUG, "Connection closed.");
+    break;
+  case LinphoneCallError:
+    syslog(LOG_WARNING, "Failed to establish call.");
+    break;
+  default:
+    syslog(LOG_DEBUG, "Unhandled notification on call: %i", cstate);
+    break;
+  }
 }
