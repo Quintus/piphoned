@@ -186,6 +186,8 @@ void piphoned_phonemanager_stop_call(struct Piphoned_PhoneManager* p_manager)
   if (!p_manager->is_calling)
     return;
 
+  /* Terminating a call that has been ended by the other side already should
+   * do no harm. */
   linphone_core_terminate_call(p_manager->p_linphone, p_manager->p_call);
   linphone_call_unref(p_manager->p_call);
 
