@@ -57,6 +57,11 @@ include_directories(${Linphone_INCLUDE_DIRS} ${CURL_INCLUDE_DIRS} ${WiringPi_INC
 file(GLOB_RECURSE piphoned_sources
   "src/*.c"
   "src/*.h")
+
+file(GLOB_RECURSE piphoned_soundcards_sources
+  "piphoned-soundcards/*.c"
+  "piphoned-soundcards/*.h")
+
 configure_file(${CMAKE_SOURCE_DIR}/config.h.in ${CMAKE_BINARY_DIR}/config.h)
 include_directories("${CMAKE_SOURCE_DIR}/src" ${CMAKE_BINARY_DIR})
 
@@ -64,13 +69,16 @@ include_directories("${CMAKE_SOURCE_DIR}/src" ${CMAKE_BINARY_DIR})
 # Targets
 
 add_executable(piphoned ${piphoned_sources})
+add_executable(piphoned-soundcards ${piphoned_soundcards_sources})
 target_link_libraries(piphoned
   ${Linphone_LIBRARIES}
   ${CURL_LIBRARIES}
   ${WiringPi_LIBRARIES})
+target_link_libraries(piphoned-soundcards
+  ${Linphone_LIBRARIES})
 
 ########################################
 # Installation information
 
-install(TARGETS piphoned
+install(TARGETS piphoned piphoned-soundcards
   DESTINATION bin)
