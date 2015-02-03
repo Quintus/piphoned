@@ -1,0 +1,13 @@
+[Unit]
+Description=Piphoned SIP daemon
+After=network.target
+
+[Service]
+Type=forking
+PIDFile=/var/run/piphoned.pid
+ExecStart=/usr/sbin/piphoned -l 7 start
+ExecStop=/usr/sbin/piphoned stop
+ExecRestart=/usr/sbin/piphoned restart
+
+[Install]
+WantedBy=multi-user.target
