@@ -7,6 +7,8 @@ override_dh_auto_configure:
 
 override_dh_auto_install:
 	$(MAKE) DESTDIR=debian/piphoned install
+	mkdir -p debian/piphoned/etc/init.d
+	cp debian/piphoned/usr/share/piphoned/initscript debian/piphoned/etc/init.d/piphoned
 
 override_dh_shlibdeps:
 	@echo Depending on local libraries right now. Ignoring.
