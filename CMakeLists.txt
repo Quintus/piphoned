@@ -82,4 +82,6 @@ target_link_libraries(piphoned-soundcards
 # Installation information
 
 install(TARGETS piphoned piphoned-soundcards
-  DESTINATION bin)
+  DESTINATION sbin)
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/data/
+  DESTINATION share/piphoned)
