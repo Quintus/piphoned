@@ -1,0 +1,12 @@
+#!/usr/bin/make -f
+%:
+	dh $@
+
+override_dh_auto_configure:
+	cmake -DCMAKE_INSTALL_PREFIX=/usr .
+
+override_dh_auto_install:
+	$(MAKE) DESTDIR=debian/piphoned install
+
+override_dh_shlibdeps:
+	@echo Depending on local libraries right now. Ignoring.

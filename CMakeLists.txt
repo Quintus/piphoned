@@ -60,8 +60,8 @@ file(GLOB_RECURSE piphoned_sources
   "src/*.h")
 
 file(GLOB_RECURSE piphoned_soundcards_sources
-  "piphoned-soundcards/*.c"
-  "piphoned-soundcards/*.h")
+  "piphoned-soundcards-src/*.c"
+  "piphoned-soundcards-src/*.h")
 
 configure_file(${CMAKE_SOURCE_DIR}/config.h.in ${CMAKE_BINARY_DIR}/config.h)
 include_directories("${CMAKE_SOURCE_DIR}/src" ${CMAKE_BINARY_DIR})
