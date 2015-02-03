@@ -34,7 +34,7 @@ dial_count_pin = 1
 
 # Domain appended to the bare numbers dialed. @ is automatically
 # prepended to the domain.
-auto_domain = 1und1.de
+auto_domain = your-sipprovider-domain.invalid
 
 # Define the ALSA devices to use for executing a call.
 # You can find these names with the `piphoned-soundcards'
