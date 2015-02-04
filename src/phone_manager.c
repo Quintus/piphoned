@@ -361,7 +361,7 @@ static void handle_incoming_call(LinphoneCore* p_linphone, LinphoneCall* p_call)
   struct Piphoned_PhoneManager* p_manager = (struct Piphoned_PhoneManager*) linphone_core_get_user_data(p_linphone);
   char* straddr = linphone_call_get_remote_address_as_string(p_call);
   syslog(LOG_NOTICE, "Incoming call from %s", straddr);
-  free(straddr);
+  ms_free(straddr);
 
   /* Deny calls while busy. We can’t have two calls at once. */
   if (p_manager->is_calling) {
