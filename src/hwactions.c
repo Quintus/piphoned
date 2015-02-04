@@ -190,6 +190,7 @@ void hangup_callback(int pin, void* arg)
    * two or three times. We don’t want this to cause a new call. */
   gettimeofday(&timestamp, NULL);
   if (timestamp.tv_sec - s_hangup_timestamp.tv_sec < 3) {
+    syslog(LOG_ERR, "Received pickup/hangup in a very short time distance. Assuming this was an accident, ignoring.");
     pthread_mutex_unlock(&s_isup_mutex);
     return;
   }
