@@ -262,6 +262,9 @@ void piphoned_phonemanager_decline_incoming_call(struct Piphoned_PhoneManager* p
  * Private helpers
  ***************************************/
 
+/**
+ * CURL callback.
+ */
 size_t get_curl_data(void* buf, size_t size, size_t num_members, void* userdata)
 {
   char* ipv4 = (char*) userdata;
@@ -272,6 +275,13 @@ size_t get_curl_data(void* buf, size_t size, size_t num_members, void* userdata)
   return num_members * size;
 }
 
+/**
+ * Fires an HTTP GET request to http://ifconfig.me/ip to determine
+ * the IPv4 of a NATed computer. Note that ifconfig.me often needs
+ * to be tried multiple times before it actually answeres; if this
+ * time it didn’t work out, false is returned. If everything is good,
+ * true is returned and the public IPv4 ends up in `ipv4`.
+ */
 bool determine_public_ipv4(char* ipv4)
 {
   CURL* p_handle = NULL;
@@ -296,6 +306,11 @@ bool determine_public_ipv4(char* ipv4)
   }
 }
 
+/**
+ * Load a linphone proxy from the configuration file and return it.
+ *
+ * Currently only works for the first proxy in the configuration file.
+ */
 LinphoneProxyConfig* load_linphone_proxy(LinphoneCore* p_linphone)
 {
   LinphoneProxyConfig* p_proxy = NULL;
@@ -334,6 +349,10 @@ LinphoneProxyConfig* load_linphone_proxy(LinphoneCore* p_linphone)
   return p_proxy;
 }
 
+/**
+ * Linphone callback called when something of importance related to a call
+ * happens.
+ */
 void call_state_changed(LinphoneCore* p_linphone, LinphoneCall* p_call, LinphoneCallState cstate, const char *msg)
 {
   switch (cstate) {
@@ -357,6 +376,10 @@ void call_state_changed(LinphoneCore* p_linphone, LinphoneCall* p_call, Linphone
   }
 }
 
+/**
+ * Set up state for an incoming call so that the mainloop can accept it
+ * later on.
+ */
 void handle_incoming_call(LinphoneCore* p_linphone, LinphoneCall* p_call)
 {
   struct Piphoned_PhoneManager* p_manager = (struct Piphoned_PhoneManager*) linphone_core_get_user_data(p_linphone);
@@ -377,6 +400,11 @@ void handle_incoming_call(LinphoneCore* p_linphone, LinphoneCall* p_call)
   linphone_call_ref(p_call);
 }
 
+/**
+ * Clean up state after a call has ended. This is mainly used for the case
+ * where the mainloop didn’t accept a call (i.e. the call was missed by
+ * the user), where state would screw up if we didn’t cleaned it up.
+ */
 void handle_call_ending(LinphoneCore* p_linphone, LinphoneCall* p_call)
 {
   struct Piphoned_PhoneManager* p_manager = (struct Piphoned_PhoneManager*) linphone_core_get_user_data(p_linphone);
@@ -396,6 +424,9 @@ void handle_call_ending(LinphoneCore* p_linphone, LinphoneCall* p_call)
   syslog(LOG_DEBUG, "Connection closed.");
 }
 
+/**
+ * Logging helper function for writing the call log file.
+ */
 void log_call(LinphoneCall* p_call, enum Piphoned_CallLogAction action)
 {
   char* sip_uri = linphone_call_get_remote_address_as_string(p_call);
