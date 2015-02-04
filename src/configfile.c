@@ -52,6 +52,7 @@ void piphoned_config_init(const char* configfile)
  */
 void piphoned_config_free()
 {
+  fclose(g_piphoned_config_info.p_calllogfile);
   piphoned_config_parsed_file_free(&g_piphoned_config_info);
 }
 
@@ -180,6 +181,13 @@ void piphoned_config_parse_ini_generalline(const char* line, struct Piphoned_Con
   }
   else if (strcmp(key, "audiogroup") == 0) {
     p_info->audiogroup = piphoned_userinfo_get_gid(value);
+  }
+  else if (strcmp(key, "phonelog") == 0) {
+    p_info->p_calllogfile = fopen(value, "a");
+    if (!p_info) {
+      syslog(LOG_CRIT, "Failed to open call logfile (%m), exiting!");
+      exit(4);
+    }
   }
   else {
     syslog(LOG_ERR, "Ignoring invalid key '%s' in [General] section of configuration file.", key);

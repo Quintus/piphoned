@@ -43,6 +43,9 @@ ring_sound_device = linphone_device_name
 playback_sound_device = linphone_device_name
 capture_sound_device = linphone_device_name
 
+# Log file for calls.
+phonelog = /var/log/phone.log
+
 # Example provider section. Adapt to your needs.
 [YourProvider]
 

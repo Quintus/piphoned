@@ -12,11 +12,20 @@
  */
 #define LINPHONE_WAIT_DELAY 50000
 
+enum Piphoned_CallLogAction {
+  PIPHONED_CALL_ACCEPTED = 1,
+  PIPHONED_CALL_DECLINED,
+  PIPHONED_CALL_OUTGOING,
+  PIPHONED_CALL_MISSED,
+  PIPHONED_CALL_BUSY
+};
+
 static bool determine_public_ipv4(char* ipv4);
 static size_t get_curl_data(void* buf, size_t size, size_t num_members, void* userdata);
 static LinphoneProxyConfig* load_linphone_proxy(LinphoneCore* p_linphone);
 static void call_state_changed(LinphoneCore* p_linphone, LinphoneCall* p_call, LinphoneCallState cstate, const char *msg);
 static void handle_incoming_call(LinphoneCore* p_linphone, LinphoneCall* p_call);
+static void log_call(LinphoneCall* p_call, enum Piphoned_CallLogAction action);
 
 /**
  * Creates a new PhoneManager. Do not use more than one PhoneManager
@@ -171,6 +180,7 @@ void piphoned_phonemanager_place_call(struct Piphoned_PhoneManager* p_manager, c
   }
 
   syslog(LOG_NOTICE, "Started call to '%s'", sip_uri);
+  log_call(p_manager->p_call, PIPHONED_CALL_OUTGOING);
   linphone_call_ref(p_manager->p_call);
 
   /* piphoned_phone_place_call(p_linphone, sip_uri); */
@@ -215,6 +225,7 @@ void piphoned_phonemanager_accept_incoming_call(struct Piphoned_PhoneManager* p_
     return;
   }
 
+  log_call(p_manager->p_call, PIPHONED_CALL_ACCEPTED);
   linphone_core_accept_call(p_manager->p_linphone, p_manager->p_call);
 
   /* Now go into the same state as if the call was initiated by us. */
@@ -237,6 +248,7 @@ void piphoned_phonemanager_decline_incoming_call(struct Piphoned_PhoneManager* p
     return;
   }
 
+  log_call(p_manager->p_call, PIPHONED_CALL_DECLINED);
   linphone_core_decline_call(p_manager->p_linphone, p_manager->p_call, LinphoneReasonDeclined);
 
   /* Now go into the same state as if the call was terminated by us. */
@@ -354,6 +366,7 @@ static void handle_incoming_call(LinphoneCore* p_linphone, LinphoneCall* p_call)
   /* Deny calls while busy. We can’t have two calls at once. */
   if (p_manager->is_calling) {
     syslog(LOG_NOTICE, "Denying incoming call while another call is active.");
+    log_call(p_call, PIPHONED_CALL_BUSY);
     linphone_core_decline_call(p_linphone, p_call, LinphoneReasonBusy);
     return;
   }
@@ -361,4 +374,32 @@ static void handle_incoming_call(LinphoneCore* p_linphone, LinphoneCall* p_call)
   p_manager->p_call = p_call;
   p_manager->has_incoming_call = true;
   linphone_call_ref(p_call);
+}
+
+void log_call(LinphoneCall* p_call, enum Piphoned_CallLogAction action)
+{
+  char* sip_uri = linphone_call_get_remote_address_as_string(p_call);
+
+  switch(action) {
+  case PIPHONED_CALL_ACCEPTED:
+    fprintf(g_piphoned_config_info.p_calllogfile, "ACCEPT %s\n", sip_uri);
+    break;
+  case PIPHONED_CALL_DECLINED:
+    fprintf(g_piphoned_config_info.p_calllogfile, "DECLINE %s\n", sip_uri);
+    break;
+  case PIPHONED_CALL_OUTGOING:
+    fprintf(g_piphoned_config_info.p_calllogfile, "OUT %s\n", sip_uri);
+    break;
+  case PIPHONED_CALL_MISSED:
+    fprintf(g_piphoned_config_info.p_calllogfile, "MISSED %s\n", sip_uri);
+    break;
+  case PIPHONED_CALL_BUSY:
+    fprintf(g_piphoned_config_info.p_calllogfile, "BUSY %s\n", sip_uri);
+    break;
+  default:
+    fprintf(g_piphoned_config_info.p_calllogfile, "UNKNOWN %s\n", sip_uri);
+    break;
+  }
+
+  ms_free(sip_uri);
 }
