@@ -171,16 +171,26 @@ void piphoned_phonemanager_place_call(struct Piphoned_PhoneManager* p_manager, c
   }
   if (strlen(sip_uri) == 0) {
     syslog(LOG_ERR, "Will not dial an empty SIP URI.");
+    p_manager->error_counter++;
     return;
   }
   if (strlen(sip_uri) < 5) { /* Each sip URI must at least have "sip:" at the beginning. */
     syslog(LOG_ERR, "Will not dial incomplete SIP URI.");
+    p_manager->error_counter++;
     return;
   }
   if (sip_uri[4] == '@') { /* SIP URI looks like "sip:@foo". This happens surprisingly often. */
     syslog(LOG_ERR, "Will not dial SIP URI without user part.");
+    p_manager->error_counter++;
     return;
   }
+  if (p_manager->error_counter >= 10) {
+    /* There is obviously something going wrong if we get here. */
+    syslog(LOG_CRIT, "Received 10 errorneous dialing attempts in a row. Exiting!");
+    exit(6);
+  }
+
+  p_manager->error_counter = 0; /* Reset for next time */
 
   p_manager->p_call = linphone_core_invite(p_manager->p_linphone, sip_uri);
   if (!p_manager->p_call) {

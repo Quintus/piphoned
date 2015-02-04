@@ -10,6 +10,7 @@ struct Piphoned_PhoneManager {
   char ipv4[512];            /*< Our public IPv4 */
   bool is_calling;           /*< Is a call in progress? */
   bool has_incoming_call;    /*< Is an incoming call awaiting acceptance? */
+  long error_counter;        /*< For preventing unwated dialing */
 };
 
 struct Piphoned_PhoneManager* piphoned_phonemanager_new();
