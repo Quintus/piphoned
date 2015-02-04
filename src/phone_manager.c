@@ -382,13 +382,13 @@ void log_call(LinphoneCall* p_call, enum Piphoned_CallLogAction action)
 
   switch(action) {
   case PIPHONED_CALL_ACCEPTED:
-    fprintf(g_piphoned_config_info.p_calllogfile, "ACCEPT %s\n", sip_uri);
+    fprintf(g_piphoned_config_info.p_calllogfile, "ACCEPTED %s\n", sip_uri);
     break;
   case PIPHONED_CALL_DECLINED:
-    fprintf(g_piphoned_config_info.p_calllogfile, "DECLINE %s\n", sip_uri);
+    fprintf(g_piphoned_config_info.p_calllogfile, "DECLINED %s\n", sip_uri);
     break;
   case PIPHONED_CALL_OUTGOING:
-    fprintf(g_piphoned_config_info.p_calllogfile, "OUT %s\n", sip_uri);
+    fprintf(g_piphoned_config_info.p_calllogfile, "OUTGOING %s\n", sip_uri);
     break;
   case PIPHONED_CALL_MISSED:
     fprintf(g_piphoned_config_info.p_calllogfile, "MISSED %s\n", sip_uri);
