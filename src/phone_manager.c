@@ -25,6 +25,7 @@ static size_t get_curl_data(void* buf, size_t size, size_t num_members, void* us
 static LinphoneProxyConfig* load_linphone_proxy(LinphoneCore* p_linphone);
 static void call_state_changed(LinphoneCore* p_linphone, LinphoneCall* p_call, LinphoneCallState cstate, const char *msg);
 static void handle_incoming_call(LinphoneCore* p_linphone, LinphoneCall* p_call);
+static void handle_call_ending(LinphoneCore* p_linphone, LinphoneCall* p_call);
 static void log_call(LinphoneCall* p_call, enum Piphoned_CallLogAction action);
 
 /**
@@ -343,7 +344,7 @@ void call_state_changed(LinphoneCore* p_linphone, LinphoneCall* p_call, Linphone
     syslog(LOG_DEBUG, "Connection established.");
     break;
   case LinphoneCallEnd:
-    syslog(LOG_DEBUG, "Connection closed.");
+    handle_call_ending(p_linphone, p_call);
     break;
   case LinphoneCallError:
     syslog(LOG_WARNING, "Failed to establish call.");
@@ -356,7 +357,7 @@ void call_state_changed(LinphoneCore* p_linphone, LinphoneCall* p_call, Linphone
   }
 }
 
-static void handle_incoming_call(LinphoneCore* p_linphone, LinphoneCall* p_call)
+void handle_incoming_call(LinphoneCore* p_linphone, LinphoneCall* p_call)
 {
   struct Piphoned_PhoneManager* p_manager = (struct Piphoned_PhoneManager*) linphone_core_get_user_data(p_linphone);
   char* straddr = linphone_call_get_remote_address_as_string(p_call);
@@ -374,6 +375,25 @@ static void handle_incoming_call(LinphoneCore* p_linphone, LinphoneCall* p_call)
   p_manager->p_call = p_call;
   p_manager->has_incoming_call = true;
   linphone_call_ref(p_call);
+}
+
+void handle_call_ending(LinphoneCore* p_linphone, LinphoneCall* p_call)
+{
+  struct Piphoned_PhoneManager* p_manager = (struct Piphoned_PhoneManager*) linphone_core_get_user_data(p_linphone);
+
+  if (p_manager->has_incoming_call) {
+    syslog(LOG_NOTICE, "Call not accepted. Resetting to normal state.");
+    log_call(p_call, PIPHONED_CALL_MISSED);
+
+    /* If we didn't do this, the mainloop would be tricked into trying
+     * to accept a call that doesn't exist anymore when the user in
+     * reality wanted to start a totally unrelated new call. */
+    p_manager->has_incoming_call = false;
+    linphone_call_unref(p_manager->p_call);
+    p_manager->p_call = NULL;
+  }
+
+  syslog(LOG_DEBUG, "Connection closed.");
 }
 
 void log_call(LinphoneCall* p_call, enum Piphoned_CallLogAction action)
