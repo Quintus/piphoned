@@ -4,7 +4,7 @@
 
 void piphoned_hwactions_init();                 /*< Initialize interrupt callbacks. */
 void piphoned_hwactions_free();                 /*< Cleanup all the callbacks */
-bool piphoned_hwactions_check_pickup(char* uri); /*< Has the phone been picked up? */
-bool piphoned_hwactions_check_hangup();         /*< Has the phone been hung up? */
+bool piphoned_hwactions_is_phone_hung_up();     /*< Is the phone on the base? */
+void piphoned_hwactions_get_sip_uri(char* target); /*< Get the URI dialed. */
 
 #endif

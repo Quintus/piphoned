@@ -308,7 +308,7 @@ int mainloop()
     piphoned_phonemanager_update(p_phonemanager);
 
     if (p_phonemanager->has_incoming_call) {
-      if (piphoned_hwactions_check_pickup(sip_uri)) { /* sip_uri will be ignored on an incoming call */
+      if (!piphoned_hwactions_is_phone_hung_up()) {
         syslog(LOG_NOTICE, "Accepting call.");
         piphoned_phonemanager_accept_incoming_call(p_phonemanager);
       }
@@ -319,13 +319,14 @@ int mainloop()
     }
     else {
       if (p_phonemanager->is_calling) {
-        if (piphoned_hwactions_check_hangup()) {
+        if (piphoned_hwactions_is_phone_hung_up()) {
           syslog(LOG_NOTICE, "Terminating call.");
           piphoned_phonemanager_stop_call(p_phonemanager);
         }
       }
       else {
-        if (piphoned_hwactions_check_pickup(sip_uri)) {
+        if (!piphoned_hwactions_is_phone_hung_up()) {
+          piphoned_hwactions_get_sip_uri(sip_uri);
           syslog(LOG_NOTICE, "Dialing SIP URI: %s", sip_uri);
           piphoned_phonemanager_place_call(p_phonemanager, sip_uri);
         }
