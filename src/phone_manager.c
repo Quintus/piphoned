@@ -364,6 +364,9 @@ LinphoneProxyConfig* load_linphone_proxy(LinphoneCore* p_linphone)
   linphone_proxy_config_set_server_addr(p_proxy, p_config->server);
   linphone_proxy_config_enable_register(p_proxy, TRUE);
 
+  if (p_config->use_publish)
+    linphone_proxy_config_enable_publish(p_proxy, TRUE);
+
   return p_proxy;
 }
 
