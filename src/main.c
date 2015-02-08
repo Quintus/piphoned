@@ -10,7 +10,6 @@
 #include <grp.h>
 #include <wiringPi.h>
 #include <linphone/linphonecore.h>
-#include <curl/curl.h>
 #include "main.h"
 #include "configfile.h"
 #include "hwactions.h"
@@ -44,7 +43,6 @@ int main(int argc, char* argv[])
   piphoned_config_init(g_cli_options.config_file); /* sets g_piphoned_config_info */
 
   /* Library initialisation */
-  curl_global_init(CURL_GLOBAL_ALL);
 
   switch(g_cli_options.command) {
   case PIPHONED_COMMAND_START:
@@ -62,7 +60,6 @@ int main(int argc, char* argv[])
   }
 
   /* Library cleanup */
-  curl_global_cleanup();
 
   piphoned_config_free();
   syslog(LOG_DEBUG, "Late termination phase ended.");

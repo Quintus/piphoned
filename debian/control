@@ -7,7 +7,7 @@ Build-Depends: debhelper (>= 9), cmake
 
 Package: piphoned
 Architecture: any
-Depends: libc6, ${misc:Depends}, libcurl3
+Depends: libc6, ${misc:Depends}
 Description: SIP client daemon for hardware phone
  SIP client daemon for a hardware phone based on the Raspberry Pi.
  This package needs linphone in a far more recent version than

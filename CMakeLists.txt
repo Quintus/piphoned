@@ -45,12 +45,11 @@ add_definitions("-D_BSD_SOURCE=1")
 
 find_package(PkgConfig REQUIRED)
 find_package(WiringPi REQUIRED)
-find_package(CURL REQUIRED)
 pkg_check_modules(Linphone REQUIRED linphone)
 
 string(REPLACE ";" " " Linphone_CFLAGS "${Linphone_CFLAGS}") # WTF? http://www.cmake.org/Bug/view.php?id=12317 is marked as WONTFIX?
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${Linphone_CFLAGS}")
-include_directories(${Linphone_INCLUDE_DIRS} ${CURL_INCLUDE_DIRS} ${WiringPi_INCLUDE_DIR})
+include_directories(${Linphone_INCLUDE_DIRS} ${WiringPi_INCLUDE_DIR})
 
 ########################################
 # Source files
@@ -73,7 +72,6 @@ add_executable(piphoned ${piphoned_sources})
 add_executable(piphoned-soundcards ${piphoned_soundcards_sources})
 target_link_libraries(piphoned
   ${Linphone_LIBRARIES}
-  ${CURL_LIBRARIES}
   ${WiringPi_LIBRARIES})
 target_link_libraries(piphoned-soundcards
   ${Linphone_LIBRARIES})

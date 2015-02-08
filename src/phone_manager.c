@@ -2,7 +2,6 @@
 #include <string.h>
 #include <time.h>
 #include <syslog.h>
-#include <curl/curl.h>
 #include "phone_manager.h"
 #include "commandline.h"
 #include "configfile.h"
@@ -21,8 +20,6 @@ enum Piphoned_CallLogAction {
   PIPHONED_CALL_BUSY
 };
 
-static bool determine_public_ipv4(char* ipv4);
-static size_t get_curl_data(void* buf, size_t size, size_t num_members, void* userdata);
 static LinphoneProxyConfig* load_linphone_proxy(LinphoneCore* p_linphone);
 static void call_state_changed(LinphoneCore* p_linphone, LinphoneCall* p_call, LinphoneCallState cstate, const char *msg);
 static void handle_incoming_call(LinphoneCore* p_linphone, LinphoneCall* p_call);
@@ -38,13 +35,6 @@ struct Piphoned_PhoneManager* piphoned_phonemanager_new()
   struct Piphoned_PhoneManager* p_manager = (struct Piphoned_PhoneManager*) malloc(sizeof(struct Piphoned_PhoneManager));
   memset(p_manager, '\0', sizeof(struct Piphoned_PhoneManager));
 
-  while (!determine_public_ipv4(p_manager->ipv4)) {
-    syslog(LOG_INFO, "Failed to retrieve public IPv4. Trying again in 20 seconds.");
-    sleep(20);
-  }
-
-  syslog(LOG_NOTICE, "Determined public IPv4: %s", p_manager->ipv4);
-
   /* Output linphone logs to stdout if we have stdout (i.e. we are not forking) */
   if (!g_cli_options.daemonize)
     linphone_core_enable_logs(NULL);
@@ -53,8 +43,8 @@ struct Piphoned_PhoneManager* piphoned_phonemanager_new()
   p_manager->vtable.call_state_changed = call_state_changed;
 
   p_manager->p_linphone = linphone_core_new(&p_manager->vtable, NULL, NULL, p_manager);
-  linphone_core_set_firewall_policy(p_manager->p_linphone, LinphonePolicyUseNatAddress);
-  linphone_core_set_nat_address(p_manager->p_linphone, p_manager->ipv4);
+  linphone_core_set_stun_server(p_manager->p_linphone, "stun.linphone.org");
+  linphone_core_set_firewall_policy(p_manager->p_linphone, LinphonePolicyUseStun);
 
   /* Setup the sound devices */
   if (!linphone_core_sound_device_can_capture(p_manager->p_linphone, g_piphoned_config_info.capture_sound_device)) {
@@ -280,50 +270,6 @@ void piphoned_phonemanager_decline_incoming_call(struct Piphoned_PhoneManager* p
 /***************************************
  * Private helpers
  ***************************************/
-
-/**
- * CURL callback.
- */
-size_t get_curl_data(void* buf, size_t size, size_t num_members, void* userdata)
-{
-  char* ipv4 = (char*) userdata;
-  int length = strlen(ipv4);
-
-  memcpy(ipv4 + length, buf, num_members * size);
-
-  return num_members * size;
-}
-
-/**
- * Fires an HTTP GET request to http://ifconfig.me/ip to determine
- * the IPv4 of a NATed computer. Note that ifconfig.me often needs
- * to be tried multiple times before it actually answeres; if this
- * time it didn’t work out, false is returned. If everything is good,
- * true is returned and the public IPv4 ends up in `ipv4`.
- */
-bool determine_public_ipv4(char* ipv4)
-{
-  CURL* p_handle = NULL;
-  char curlerror[CURL_ERROR_SIZE];
-  memset(ipv4, '\0', 512);
-
-  p_handle = curl_easy_init();
-  curl_easy_setopt(p_handle, CURLOPT_URL, "http://ifconfig.me/ip");
-  curl_easy_setopt(p_handle, CURLOPT_WRITEFUNCTION, get_curl_data);
-  curl_easy_setopt(p_handle, CURLOPT_NOPROGRESS, 1L);
-  curl_easy_setopt(p_handle, CURLOPT_ERRORBUFFER, curlerror);
-  curl_easy_setopt(p_handle, CURLOPT_WRITEDATA, ipv4);
-
-  if (curl_easy_perform(p_handle) != CURLE_OK) {
-    syslog(LOG_WARNING, "libcurl returned error: %s", curlerror);
-    curl_easy_cleanup(p_handle);
-    return false;
-  }
-  else {
-    curl_easy_cleanup(p_handle);
-    return true;
-  }
-}
 
 /**
  * Load a linphone proxy from the configuration file and return it.
