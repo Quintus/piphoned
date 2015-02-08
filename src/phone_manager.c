@@ -358,7 +358,7 @@ LinphoneProxyConfig* load_linphone_proxy(LinphoneCore* p_linphone)
   linphone_core_add_auth_info(p_linphone, p_auth); /* Side effect: lets linphone-core manage memory of p_auth */
 
   memset(str, '\0', PATH_MAX);
-  sprintf(str, "%s <sip:%s@%s>", p_config->displayname, p_config->username, p_config->server);
+  sprintf(str, "\"%s\" <sip:%s@%s>", p_config->displayname, p_config->username, p_config->server);
   syslog(LOG_INFO, "Using SIP identity for realm %s: %s", p_config->realm, str);
 
   linphone_proxy_config_set_identity(p_proxy, str);
