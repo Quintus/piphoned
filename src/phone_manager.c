@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <syslog.h>
 #include <curl/curl.h>
 #include "phone_manager.h"
@@ -450,26 +451,32 @@ void handle_call_ending(LinphoneCore* p_linphone, LinphoneCall* p_call)
  */
 void log_call(LinphoneCall* p_call, enum Piphoned_CallLogAction action)
 {
+  char timestamp[512];
   char* sip_uri = linphone_call_get_remote_address_as_string(p_call);
+  time_t t = time(NULL);
+  struct tm* time = localtime(&t);
+
+  memset(timestamp, '\0', 512);
+  strftime(timestamp, 512, "%Y-%m-%dT%H:%M:%S%z", time);
 
   switch(action) {
   case PIPHONED_CALL_ACCEPTED:
-    fprintf(g_piphoned_config_info.p_calllogfile, "ACCEPTED %s\n", sip_uri);
+    fprintf(g_piphoned_config_info.p_calllogfile, "%s ACCEPTED %s\n", timestamp, sip_uri);
     break;
   case PIPHONED_CALL_DECLINED:
-    fprintf(g_piphoned_config_info.p_calllogfile, "DECLINED %s\n", sip_uri);
+    fprintf(g_piphoned_config_info.p_calllogfile, "%s DECLINED %s\n", timestamp, sip_uri);
     break;
   case PIPHONED_CALL_OUTGOING:
-    fprintf(g_piphoned_config_info.p_calllogfile, "OUTGOING %s\n", sip_uri);
+    fprintf(g_piphoned_config_info.p_calllogfile, "%s OUTGOING %s\n", timestamp, sip_uri);
     break;
   case PIPHONED_CALL_MISSED:
-    fprintf(g_piphoned_config_info.p_calllogfile, "MISSED %s\n", sip_uri);
+    fprintf(g_piphoned_config_info.p_calllogfile, "%s MISSED %s\n", timestamp, sip_uri);
     break;
   case PIPHONED_CALL_BUSY:
-    fprintf(g_piphoned_config_info.p_calllogfile, "BUSY %s\n", sip_uri);
+    fprintf(g_piphoned_config_info.p_calllogfile, "%s BUSY %s\n", timestamp, sip_uri);
     break;
   default:
-    fprintf(g_piphoned_config_info.p_calllogfile, "UNKNOWN %s\n", sip_uri);
+    fprintf(g_piphoned_config_info.p_calllogfile, "%s UNKNOWN %s\n", timestamp, sip_uri);
     break;
   }
 
