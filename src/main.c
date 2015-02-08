@@ -43,6 +43,7 @@ int main(int argc, char* argv[])
   piphoned_config_init(g_cli_options.config_file); /* sets g_piphoned_config_info */
 
   /* Library initialisation */
+  wiringPiSetup(); /* Requires root */
 
   switch(g_cli_options.command) {
   case PIPHONED_COMMAND_START:
@@ -76,11 +77,6 @@ int command_start()
   int retval = 0;
 
   syslog(LOG_NOTICE, "Starting up.");
-
-  /***************************************
-   * Initializing libraries
-   **************************************/
-  wiringPiSetup(); /* Requires root */
 
   /***************************************
    * Daemonising
