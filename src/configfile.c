@@ -221,6 +221,8 @@ void piphoned_config_parse_ini_proxyline(const char* line, struct Piphoned_Confi
     strcpy(p_proxytable->server, value);
   else if (strcmp(key, "realm") == 0)
     strcpy(p_proxytable->realm, value);
+  else if (strcmp(key, "publish") == 0)
+    p_proxytable->use_publish = strcmp(value, "yes") == 0;
   else
     syslog(LOG_ERR, "Ignoring invalid key '%s' in [%s] section of configuration file.", p_proxytable->name, key);
 }

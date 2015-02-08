@@ -1,5 +1,6 @@
 #ifndef PIPHONED_CONFIGFILE_H
 #define PIPHONED_CONFIGFILE_H
+#include <stdbool.h>
 #include <linux/limits.h>
 #include "config.h"
 
@@ -14,6 +15,7 @@ struct Piphoned_Config_ParsedFile_ProxyTable
   char displayname[512]; /*< How your name is displayed to other users */
   char server[PATH_MAX]; /*< SIP server to connect to */
   char realm[PATH_MAX];  /*< Realm the SIP server asks for */
+  bool use_publish;      /*< Issue PUBLISH after REGISTER? */
 };
 
 /**

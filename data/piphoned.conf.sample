@@ -61,3 +61,6 @@ server = yoursipprovider.invalid
 # Authentication realm. This is what the SIP server sends on
 # an authentication query; it is usually identical to the domain.
 realm = yoursipprovider.invalid
+# Whether to issue a PUBLISH command after REGISTER. Some SIP
+# servers need that.
+publish = yes
