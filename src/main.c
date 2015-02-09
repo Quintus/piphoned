@@ -16,13 +16,21 @@
 #include "commandline.h"
 #include "phone_manager.h"
 
+enum ZrtpNonceAcception {
+  ZRTP_NONCE_UNKNOWN = 0,
+  ZRTP_NONCE_WRONG,
+  ZRTP_NONCE_OK
+};
+
 static int mainloop();
 void handle_sigterm(int signum);
+void handle_sigusr1(int signum);
 int command_start();
 int command_stop();
 int command_restart();
 
-static volatile bool s_stop_mainloop;
+static volatile bool s_stop_mainloop = false;
+static volatile enum ZrtpNonceAcception s_zrtp_sas_ok = ZRTP_NONCE_UNKNOWN;
 
 int main(int argc, char* argv[])
 {
@@ -115,6 +123,12 @@ int command_start()
   umask(0137); /* rw-r----- */
   chdir("/");
 
+  /***************************************
+   * Last privileged operations
+   ***************************************/
+
+  /* PID file */
+
   /* If there is a PID file already, there may be something running.
    * Reject start. */
   file = fopen(g_piphoned_config_info.pidfile, "r");
@@ -134,6 +148,20 @@ int command_start()
 
   fprintf(file, "%d", getpid());
   fclose(file);
+
+  /* ZRTP secrets file */
+
+  file = fopen(g_piphoned_config_info.zrtp_secrets_file, "a"); /* Creates it if it does not exist */
+  if (!file) {
+    syslog(LOG_CRIT, "Failed to open ZRTP secrets file '%s': %m", g_piphoned_config_info.zrtp_secrets_file);
+    retval = 3;
+    goto finish;
+  }
+  fclose(file);
+  /* Too important a file -- protect even from group read rights. Still,
+   * we need to be able to write to it later on. */
+  chown(g_piphoned_config_info.zrtp_secrets_file, g_piphoned_config_info.uid, g_piphoned_config_info.gid);
+  chmod(g_piphoned_config_info.zrtp_secrets_file, S_IRUSR | S_IWUSR);
 
   syslog(LOG_INFO, "Fork setup completed.");
 
@@ -207,6 +235,10 @@ int command_start()
   }
   if (signal(SIGINT, handle_sigterm) == SIG_ERR) {
     syslog(LOG_CRIT, "Failed to setup SIGINT signal handler: %m");
+    goto finish;
+  }
+  if (signal(SIGUSR1, handle_sigusr1) == SIG_ERR) {
+    syslog(LOG_CRIT, "Failed to setup SIGUSR1 signal handler: %m");
     goto finish;
   }
 
@@ -302,6 +334,7 @@ int mainloop()
 
     if (p_phonemanager->has_incoming_call) {
       if (!piphoned_hwactions_is_phone_hung_up()) {
+        s_zrtp_sas_ok = ZRTP_NONCE_UNKNOWN;
         syslog(LOG_NOTICE, "Accepting call.");
         piphoned_phonemanager_accept_incoming_call(p_phonemanager);
       }
@@ -312,15 +345,24 @@ int mainloop()
     }
     else {
       if (p_phonemanager->is_calling) {
+        if (s_zrtp_sas_ok == ZRTP_NONCE_WRONG) {
+          piphoned_phonemanager_reject_zrtp_nonce(p_phonemanager);
+        }
+        else if (s_zrtp_sas_ok == ZRTP_NONCE_OK) {
+          piphoned_phonemanager_accept_zrtp_nonce(p_phonemanager);
+        }
+
         if (piphoned_hwactions_is_phone_hung_up()) {
           syslog(LOG_NOTICE, "Terminating call.");
           piphoned_phonemanager_stop_call(p_phonemanager);
+          s_zrtp_sas_ok = ZRTP_NONCE_UNKNOWN; /* Reset for extra safety although not needed strictly */
         }
       }
       else {
         if (!piphoned_hwactions_is_phone_hung_up()) {
           piphoned_hwactions_get_sip_uri(sip_uri);
           syslog(LOG_NOTICE, "Dialing SIP URI: %s", sip_uri);
+          s_zrtp_sas_ok = ZRTP_NONCE_UNKNOWN;
           piphoned_phonemanager_place_call(p_phonemanager, sip_uri);
         }
       }
@@ -340,4 +382,9 @@ int mainloop()
 void handle_sigterm(int signum)
 {
   s_stop_mainloop = true;
+}
+
+void handle_sigusr1(int signum)
+{
+  s_zrtp_sas_ok = ZRTP_NONCE_OK;
 }

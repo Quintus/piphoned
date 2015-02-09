@@ -20,6 +20,8 @@ void piphoned_phonemanager_place_call(struct Piphoned_PhoneManager* ptr, const c
 void piphoned_phonemanager_stop_call(struct Piphoned_PhoneManager* ptr);
 void piphoned_phonemanager_accept_incoming_call(struct Piphoned_PhoneManager* ptr);
 void piphoned_phonemanager_decline_incoming_call(struct Piphoned_PhoneManager* ptr);
+void piphoned_phonemanager_accept_zrtp_nonce(struct Piphoned_PhoneManager* ptr);
+void piphoned_phonemanager_reject_zrtp_nonce(struct Piphoned_PhoneManager* ptr);
 void piphoned_phonemanager_free(struct Piphoned_PhoneManager* ptr);
 
 #endif

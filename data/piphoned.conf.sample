@@ -46,6 +46,10 @@ capture_sound_device = linphone_device_name
 # Log file for calls.
 phonelog = /var/log/phone.log
 
+# Where to store the ZRTP trans-session data, i.e. the data that is reused
+# in consecutive ZRTP sessions to prevent MITM attacks as far as possible.
+zrtp_secrets_file = /var/lib/misc/zrtp.secrets
+
 # Example provider section. Adapt to your needs.
 [YourProvider]
 

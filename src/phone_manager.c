@@ -2,9 +2,12 @@
 #include <string.h>
 #include <time.h>
 #include <syslog.h>
+#include <sys/stat.h>
 #include "phone_manager.h"
 #include "commandline.h"
 #include "configfile.h"
+
+#define AUTHTOKEN_FILE "/tmp/zrtptoken"
 
 /**
  * Delay to wait between calls to linphone_core_iterate() to prevent
@@ -22,7 +25,9 @@ enum Piphoned_CallLogAction {
 
 static LinphoneProxyConfig* load_linphone_proxy(LinphoneCore* p_linphone);
 static void call_state_changed(LinphoneCore* p_linphone, LinphoneCall* p_call, LinphoneCallState cstate, const char *msg);
+static void call_encryption_changed(LinphoneCore* p_linphone, LinphoneCall* p_call, bool_t is_encrypted, const char* p_authtoken);
 static void handle_incoming_call(LinphoneCore* p_linphone, LinphoneCall* p_call);
+static void handle_running_streams(LinphoneCore* p_linphone, LinphoneCall* p_call);
 static void handle_call_ending(LinphoneCore* p_linphone, LinphoneCall* p_call);
 static void log_call(LinphoneCall* p_call, enum Piphoned_CallLogAction action);
 
@@ -41,6 +46,7 @@ struct Piphoned_PhoneManager* piphoned_phonemanager_new()
 
   /* Setup linphone callbacks */
   p_manager->vtable.call_state_changed = call_state_changed;
+  p_manager->vtable.call_encryption_changed = call_encryption_changed;
 
   p_manager->p_linphone = linphone_core_new(&p_manager->vtable, NULL, NULL, p_manager);
   linphone_core_set_stun_server(p_manager->p_linphone, "stun.linphone.org");
@@ -69,6 +75,11 @@ struct Piphoned_PhoneManager* piphoned_phonemanager_new()
   syslog(LOG_INFO, "Ringer device: %s", g_piphoned_config_info.ring_sound_device);
   syslog(LOG_INFO, "Playback device: %s", g_piphoned_config_info.playback_sound_device);
   syslog(LOG_INFO, "Capture device: %s", g_piphoned_config_info.capture_sound_device);
+
+  linphone_core_set_media_encryption(p_manager->p_linphone, LinphoneMediaEncryptionZRTP);
+  linphone_core_set_media_encryption_mandatory(p_manager->p_linphone, false); /* Drops encryption silently if we don’t communicate it to the user! This has to be done in a callback! */
+  linphone_core_set_zrtp_secrets_file(p_manager->p_linphone, g_piphoned_config_info.zrtp_secrets_file);
+  syslog(LOG_INFO, "Set preferred encryption method to ZRTP, not allowing unencrypted call if unsupported.");
 
   return p_manager;
 
@@ -267,6 +278,32 @@ void piphoned_phonemanager_decline_incoming_call(struct Piphoned_PhoneManager* p
   p_manager->p_call = NULL;
 }
 
+/**
+ * Accept the ZRTP SAS authentication nonce string.
+ */
+void piphoned_phonemanager_accept_zrtp_nonce(struct Piphoned_PhoneManager* p_manager)
+{
+  if (!p_manager->is_calling)
+    return;
+
+  syslog(LOG_NOTICE, "ZRTP SAS accepted.");
+  linphone_call_set_authentication_token_verified(p_manager->p_call, true);
+}
+
+/**
+ * Reject the ZRTP SAS authentication nonce string. This immediately
+ * terminates the call.
+ */
+void piphoned_phonemanager_reject_zrtp_nonce(struct Piphoned_PhoneManager* p_manager)
+{
+  if (!p_manager->is_calling)
+    return;
+
+  syslog(LOG_WARNING, "ZRTP SAS rejected. Terminating call immediately.");
+  linphone_call_set_authentication_token_verified(p_manager->p_call, false);
+  piphoned_phonemanager_stop_call(p_manager);
+}
+
 /***************************************
  * Private helpers
  ***************************************/
@@ -330,6 +367,8 @@ void call_state_changed(LinphoneCore* p_linphone, LinphoneCall* p_call, Linphone
   case LinphoneCallConnected:
     syslog(LOG_DEBUG, "Connection established.");
     break;
+  case LinphoneCallStreamsRunning:
+    handle_running_streams(p_linphone, p_call);
   case LinphoneCallEnd:
     handle_call_ending(p_linphone, p_call);
     break;
@@ -341,6 +380,32 @@ void call_state_changed(LinphoneCore* p_linphone, LinphoneCall* p_call, Linphone
   default:
     syslog(LOG_DEBUG, "Unhandled notification on call: %i", cstate);
     break;
+  }
+}
+
+/**
+ * Linphone callback called when the encryption state of a call changes.
+ */
+static void call_encryption_changed(LinphoneCore* p_linphone, LinphoneCall* p_call, bool_t is_encrypted, const char* p_authtoken)
+{
+  struct Piphoned_PhoneManager* p_manager = (struct Piphoned_PhoneManager*) linphone_core_get_user_data(p_linphone);
+
+  if (is_encrypted)
+    syslog(LOG_NOTICE, "*** Encryption enabled ***");
+  else
+    syslog(LOG_NOTICE, "*** Encryption disabled ***");
+
+  if (p_authtoken) {
+    FILE* p_file = fopen(AUTHTOKEN_FILE, "w");
+    if (!p_file) {
+      syslog(LOG_ERR, "Failed to open authtoken file %s: %m", AUTHTOKEN_FILE);
+      syslog(LOG_ERR, "Terminating call for security reasons.");
+      piphoned_phonemanager_stop_call(p_manager); /* Emergency termination */
+    }
+
+    fprintf(p_file, "ZRTP SAS token: >%s<\n", p_authtoken);
+    fclose(p_file);
+    syslog(LOG_NOTICE, "ZRTP authtoken written to %s.", AUTHTOKEN_FILE);
   }
 }
 
@@ -369,6 +434,30 @@ void handle_incoming_call(LinphoneCore* p_linphone, LinphoneCall* p_call)
 }
 
 /**
+ * Log some information about the now running call.
+ */
+void handle_running_streams(LinphoneCore* p_linphone, LinphoneCall* p_call)
+{
+  const LinphoneCallParams* p_params = linphone_call_get_current_params(p_call);
+  LinphoneMediaEncryption enc = linphone_call_params_get_media_encryption(p_params);
+
+  switch(enc) {
+  case LinphoneMediaEncryptionNone:
+    syslog(LOG_INFO, "Encryption is disabled.");
+    break;
+  case LinphoneMediaEncryptionSRTP:
+    syslog(LOG_INFO, "Using SRTP encryption.");
+    break;
+  case LinphoneMediaEncryptionZRTP:
+    syslog(LOG_INFO, "Using ZRTP encryption.");
+    break;
+  default:
+    syslog(LOG_WARNING, "Unknown encryption.");
+    break;
+  }
+}
+
+/**
  * Clean up state after a call has ended. This is mainly used for the case
  * where the mainloop didn’t accept a call (i.e. the call was missed by
  * the user), where state would screw up if we didn’t cleaned it up.
@@ -376,6 +465,7 @@ void handle_incoming_call(LinphoneCore* p_linphone, LinphoneCall* p_call)
 void handle_call_ending(LinphoneCore* p_linphone, LinphoneCall* p_call)
 {
   struct Piphoned_PhoneManager* p_manager = (struct Piphoned_PhoneManager*) linphone_core_get_user_data(p_linphone);
+  struct stat s;
 
   if (p_manager->has_incoming_call) {
     syslog(LOG_NOTICE, "Call not accepted. Resetting to normal state.");
@@ -387,6 +477,11 @@ void handle_call_ending(LinphoneCore* p_linphone, LinphoneCall* p_call)
     p_manager->has_incoming_call = false;
     linphone_call_unref(p_manager->p_call);
     p_manager->p_call = NULL;
+  }
+
+  /* Remove any ZRTP SAS nonce file if that was an encrypted call. */
+  if (stat(AUTHTOKEN_FILE, &s) == 0) {
+    unlink(AUTHTOKEN_FILE);
   }
 
   syslog(LOG_DEBUG, "Connection closed.");
