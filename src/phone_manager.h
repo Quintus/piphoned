@@ -2,11 +2,14 @@
 #define LINPHONED_PHONE_MANAGER_H
 #include <stdbool.h>
 #include <linphone/linphonecore.h>
+#include "config.h"
 
 struct Piphoned_PhoneManager {
   LinphoneCoreVTable vtable; /*< Linphone callback table */
   LinphoneCore* p_linphone;  /*< Linphone Core object */
   LinphoneCall* p_call;      /*< Current call, if any (NULL otherwise) */
+  LinphoneProxyConfig* proxies[PIPHONED_MAX_PROXY_NUM]; /*< All loaded proxies */
+  long num_proxies;          /*< Count of all loaded proxies in `proxies' */
   char ipv4[512];            /*< Our public IPv4 */
   bool is_calling;           /*< Is a call in progress? */
   bool has_incoming_call;    /*< Is an incoming call awaiting acceptance? */

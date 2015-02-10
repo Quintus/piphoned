@@ -23,7 +23,7 @@ enum Piphoned_CallLogAction {
   PIPHONED_CALL_BUSY
 };
 
-static LinphoneProxyConfig* load_linphone_proxy(LinphoneCore* p_linphone);
+static LinphoneProxyConfig* load_linphone_proxy(LinphoneCore* p_linphone, const struct Piphoned_Config_ParsedFile_ProxyTable* p_proxyconfig);
 static void call_state_changed(LinphoneCore* p_linphone, LinphoneCall* p_call, LinphoneCallState cstate, const char *msg);
 static void call_encryption_changed(LinphoneCore* p_linphone, LinphoneCall* p_call, bool_t is_encrypted, const char* p_authtoken);
 static void handle_incoming_call(LinphoneCore* p_linphone, LinphoneCall* p_call);
@@ -79,7 +79,7 @@ struct Piphoned_PhoneManager* piphoned_phonemanager_new()
   linphone_core_set_media_encryption(p_manager->p_linphone, LinphoneMediaEncryptionZRTP);
   linphone_core_set_media_encryption_mandatory(p_manager->p_linphone, false); /* Drops encryption silently if we don’t communicate it to the user! This has to be done in a callback! */
   linphone_core_set_zrtp_secrets_file(p_manager->p_linphone, g_piphoned_config_info.zrtp_secrets_file);
-  syslog(LOG_INFO, "Set preferred encryption method to ZRTP, not allowing unencrypted call if unsupported.");
+  syslog(LOG_INFO, "Set preferred encryption method to ZRTP, allowing unencrypted call if unsupported.");
 
   return p_manager;
 
@@ -96,36 +96,40 @@ struct Piphoned_PhoneManager* piphoned_phonemanager_new()
  */
 void piphoned_phonemanager_free(struct Piphoned_PhoneManager* p_manager)
 {
-  LinphoneProxyConfig* p_proxy = NULL;
-  struct timeval timestamp_now;
-  struct timeval timestamp_last;
+  int i = 0;
 
   if (!p_manager)
     return;
 
-  linphone_core_get_default_proxy(p_manager->p_linphone, &p_proxy);
+  for(i=0; i < p_manager->num_proxies; i++) {
+    struct timeval timestamp_now;
+    struct timeval timestamp_last;
+    LinphoneProxyConfig* p_proxy = p_manager->proxies[i];
 
-  /* TODO: Allow for multiple proxies */
-  linphone_proxy_config_edit(p_proxy);
-  linphone_proxy_config_enable_register(p_proxy, FALSE); /* Advises linphone to send deauth request */
-  linphone_proxy_config_done(p_proxy);
+    linphone_proxy_config_edit(p_proxy);
+    linphone_proxy_config_enable_register(p_proxy, FALSE); /* Advises linphone to send deauth request */
+    linphone_proxy_config_done(p_proxy);
 
-  /* Allow for the deauthentication requests */
-  gettimeofday(&timestamp_last, NULL);
-  while (linphone_proxy_config_get_state(p_proxy) != LinphoneRegistrationCleared) {
-    linphone_core_iterate(p_manager->p_linphone);
-    ms_usleep(LINPHONE_WAIT_DELAY);
+    /* Allow for the deauthentication requests */
+    gettimeofday(&timestamp_last, NULL);
+    while (linphone_proxy_config_get_state(p_proxy) != LinphoneRegistrationCleared) {
+      linphone_core_iterate(p_manager->p_linphone);
+      ms_usleep(LINPHONE_WAIT_DELAY);
 
-    /* If for two minutes nothing happens, terminate anyway. */
-    gettimeofday(&timestamp_now, NULL);
-    if (timestamp_now.tv_sec - timestamp_last.tv_sec >= 20) {/* Debug: 120 would be correct */
-      syslog(LOG_WARNING, "Timeout waiting for SIP proxy to answer unregistration. Quitting anyway.");
-      break;
+      /* If for nothing happens for some time, terminate. */
+      gettimeofday(&timestamp_now, NULL);
+      if (timestamp_now.tv_sec - timestamp_last.tv_sec >= 20) {
+        syslog(LOG_WARNING, "Timeout waiting for SIP proxy %i to answer unregistration. Continuing anyway.", i);
+        break;
+      }
     }
+
+    /* Linphone documentation says we are not allowed to free proxies
+     * that have been removed with linphone_core_remove_proxy_config(). */
+    p_manager->proxies[i] = NULL;
   }
 
-  /* Linphone documentation says we are not allowed to free proxies
-   * that have been removed with linphone_core_remove_proxy_config(). */
+  p_manager->num_proxies = 0;
   linphone_core_destroy(p_manager->p_linphone);
   free(p_manager);
 }
@@ -136,13 +140,30 @@ void piphoned_phonemanager_free(struct Piphoned_PhoneManager* p_manager)
  */
 bool piphoned_phonemanager_load_proxies(struct Piphoned_PhoneManager* p_manager)
 {
-  LinphoneProxyConfig* p_proxy = load_linphone_proxy(p_manager->p_linphone);
-  if (!p_proxy) {
-    return false;
-  }
+  int i;
 
-  linphone_core_add_proxy_config(p_manager->p_linphone, p_proxy); /* Side effect: Makes linphone manage the memory of p_proxy */
-  linphone_core_set_default_proxy(p_manager->p_linphone, p_proxy); /* First proxy is default proxy */
+  for(i=0; i < g_piphoned_config_info.num_proxies; i++) {
+    struct Piphoned_Config_ParsedFile_ProxyTable* p_config = g_piphoned_config_info.proxies[i];
+    LinphoneProxyConfig* p_proxy = load_linphone_proxy(p_manager->p_linphone, p_config);
+
+    if (!p_proxy) {
+      if (i == 0) {
+        syslog(LOG_ERR, "Default (= first) proxy is misconfigured. Not loading any other proxy configurations.");
+        return false;
+      }
+      else {
+        syslog(LOG_WARNING, "Invalid proxy configuration for proxy %d, ignoring.", i + 1);
+        continue;
+      }
+    }
+
+    linphone_core_add_proxy_config(p_manager->p_linphone, p_proxy); /* Side effect: Makes linphone manage the memory of p_proxy */
+    p_manager->proxies[p_manager->num_proxies++] = p_proxy;
+
+    /* First proxy is default proxy */
+    if (i==0)
+      linphone_core_set_default_proxy(p_manager->p_linphone, p_proxy);
+  }
 
   return true;
 }
@@ -313,42 +334,31 @@ void piphoned_phonemanager_reject_zrtp_nonce(struct Piphoned_PhoneManager* p_man
  *
  * Currently only works for the first proxy in the configuration file.
  */
-LinphoneProxyConfig* load_linphone_proxy(LinphoneCore* p_linphone)
+LinphoneProxyConfig* load_linphone_proxy(LinphoneCore* p_linphone, const struct Piphoned_Config_ParsedFile_ProxyTable* p_proxyconfig)
 {
   LinphoneProxyConfig* p_proxy = NULL;
   LinphoneAuthInfo* p_auth = NULL;
-  struct Piphoned_Config_ParsedFile_ProxyTable* p_config = g_piphoned_config_info.proxies[0];
   char str[PATH_MAX];
 
-  /* TODO: Allow multiple proxies */
-  if (g_piphoned_config_info.num_proxies == 0) {
-    syslog(LOG_ERR, "No proxies configured.");
-    return NULL;
-  }
-  else if (g_piphoned_config_info.num_proxies > 1) {
-    syslog(LOG_ERR, "Cannot handle more than one proxy currently.");
-    return NULL;
-  }
-
   p_proxy = linphone_proxy_config_new();
-  p_auth  = linphone_auth_info_new(p_config->username,
+  p_auth  = linphone_auth_info_new(p_proxyconfig->username,
                                    NULL,
-                                   p_config->password,
+                                   p_proxyconfig->password,
                                    NULL,
-                                   p_config->realm,
-                                   NULL /* g_piphoned_config_info.proxies[0]->domain, */);
+                                   p_proxyconfig->realm,
+                                   NULL /* p_proxyconfig->domain, */);
 
   linphone_core_add_auth_info(p_linphone, p_auth); /* Side effect: lets linphone-core manage memory of p_auth */
 
   memset(str, '\0', PATH_MAX);
-  sprintf(str, "\"%s\" <sip:%s@%s>", p_config->displayname, p_config->username, p_config->server);
-  syslog(LOG_INFO, "Using SIP identity for realm %s: %s", p_config->realm, str);
+  sprintf(str, "\"%s\" <sip:%s@%s>", p_proxyconfig->displayname, p_proxyconfig->username, p_proxyconfig->server);
+  syslog(LOG_INFO, "Using SIP identity for realm %s: %s", p_proxyconfig->realm, str);
 
   linphone_proxy_config_set_identity(p_proxy, str);
-  linphone_proxy_config_set_server_addr(p_proxy, p_config->server);
+  linphone_proxy_config_set_server_addr(p_proxy, p_proxyconfig->server);
   linphone_proxy_config_enable_register(p_proxy, TRUE);
 
-  if (p_config->use_publish)
+  if (p_proxyconfig->use_publish)
     linphone_proxy_config_enable_publish(p_proxy, TRUE);
 
   return p_proxy;
