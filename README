@@ -1,0 +1,58 @@
+piphoned
+========
+
+piphoned is a SIP client for the Raspberry Pi. My goal is to make this
+an implementation good enough to work for my own desktop phone, but it
+isn’t finished yet.
+
+Outgoing calls are completely supported already, incoming calls work
+most of the time, but not always. The implementation even nominally
+supports encryption by means of ZRTP, but I was unable to test it yet
+for lack of a ZRTP-capable SIP server.
+
+Dependencies
+------------
+
+This is a UNIX daemon and as such requires a UNIX system; due to the
+dependency on linphone, most likely Linux is required. It is written
+in C, so you also need a C compiler to build it, and additionally, you
+need the following external libraries:
+
+* wiringPi
+* Linphone, at least version 3.8.0, with ZRTP support enabled
+
+Configuration
+-------------
+
+An example configuration file is included in
+data/piphoned.conf.sample, as is a sample systemd service file.
+
+Running
+-------
+
+Remember this is unfinished software that I only occasionally work
+on. It is not recommended to run this if you are not familiar with the
+codebase, so please read the sourcecode before you do.
+
+The daemon binary, piphoned, supports the standard “start” and “stop”
+commands along with a number of commandline options. Use -h to get a
+list of them.
+
+License
+-------
+
+piphoned is a SIP client for the Raspberry Pi.
+Copyright (C) 2015  Marvin Gülker
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
