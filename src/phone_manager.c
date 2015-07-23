@@ -345,8 +345,7 @@ LinphoneProxyConfig* load_linphone_proxy(LinphoneCore* p_linphone, const struct 
                                    NULL,
                                    p_proxyconfig->password,
                                    NULL,
-                                   p_proxyconfig->realm,
-                                   NULL /* p_proxyconfig->domain, */);
+                                   p_proxyconfig->realm); /* linphone >= 3.8 requires an additional domain paramater that can be set to NULL */
 
   linphone_core_add_auth_info(p_linphone, p_auth); /* Side effect: lets linphone-core manage memory of p_auth */
 
