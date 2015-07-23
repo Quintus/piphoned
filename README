@@ -38,6 +38,15 @@ The daemon binary, piphoned, supports the standard “start” and “stop”
 commands along with a number of commandline options. Use -h to get a
 list of them.
 
+Caveats
+-------
+
+On Debian, the user running piphoned must be in the “audio” group, or
+it won’t have access to any sound devices, which is bad for a
+telephone. You can add the user to the group like this:
+
+    # usermod -aG audio youruser
+
 License
 -------
 
