@@ -47,6 +47,54 @@ telephone. You can add the user to the group like this:
 
     # usermod -aG audio youruser
 
+Likewise, you need to have the kernel module for sound access on the
+Raspberry Pi, `snd-bcm2835`, loaded. If you don’t, you’ll see a lot of
+lines like:
+
+    (parse_card) cannot find card '0'
+    (_snd_config_evaluate) function snd_func_card_driver returned error: File or Directory not found
+    (snd_func_concat) error evaluating strings
+    function snd_func_concat returned error: File or Directory not found
+    (snd_pcm_open_noupdate) Unknown PCM default
+
+And many more, cryptic error messages. So load the kernel module:
+
+    $ modprobe snd-bcm2835
+
+You can add it to `/etc/modules` if you want to load it at boot time
+(recommended). To test your sound, install the `alsa-utils` package
+via APT and run this:
+
+    $ aplay /usr/share/sounds/alsa/Front_Center.wav
+
+You should now hear a voice saying “Front, Center” on the speaker
+plugged into the pi’s audio jack.
+
+To retrieve the names of the sound devices for the `piphoned.conf`
+file, use the supplied `piphoned-soundcards` executable. Its output
+should look like this if both kernel module and group are set up
+correctly:
+
+    $ ./piphoned-soundcards
+    ALSA lib conf.c:4705:(snd_config_expand) Unknown parameters 0
+    ALSA lib control.c:953:(snd_ctl_open_noupdate) Invalid CTL default:0
+    ortp-warning-Could not attach mixer to card: Invalid argument
+    ALSA lib conf.c:4705:(snd_config_expand) Unknown parameters 1
+    ALSA lib control.c:953:(snd_ctl_open_noupdate) Invalid CTL default:1
+    ortp-warning-Could not attach mixer to card: Invalid argument
+    --- List of detected devices ---
+    Device 0: ALSA: default device
+    Device 1: ALSA: bcm2835 ALSA
+    Device 2: ALSA: USB PnP Sound Device
+    Device 3: PulseAudio: default
+    --- End of list of detected devices ---
+
+If you see lines like
+
+    ortp-warning-Strange, sound card default device seems totally unusable.
+
+, then your audio devices are not set up properly.
+
 License
 -------
 
