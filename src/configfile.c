@@ -197,6 +197,29 @@ void piphoned_config_parse_ini_generalline(const char* line, struct Piphoned_Con
   else if (strcmp(key, "stunserver") == 0) {
     strcpy(p_info->stunserver, value);
   }
+  else if (strcmp(key, "firewall_policy") == 0) {
+    if (strcmp(value, "no") == 0) {
+      p_info->firewall_policy = LinphonePolicyNoFirewall;
+    }
+    else if (strcmp(value, "nat") == 0) {
+      syslog(LOG_ERR, "NAT firewall policy not yet supported. Ignoring.");
+      /* p_info->firewall_policy = LinphonePolicyUseNatAddress; */
+    }
+    else if (strcmp(value, "stun") == 0) {
+      p_info->firewall_policy = LinphonePolicyUseStun;
+    }
+    else if (strcmp(value, "ice") == 0) {
+      syslog(LOG_ERR, "ICE firewall policy not yet supported. Ignoring.");
+      /* p_info->firewall_policy = LinphonePolicyUseIce; */
+    }
+    else if (strcmp(value, "upnp") == 0) {
+      syslog(LOG_ERR, "UPNP firewall policy not yet supported. Ignoring.");
+      /* p_info->firewall_policy = LinphonePolicyUseUpnp; */
+    }
+    else {
+      syslog(LOG_ERR, "Ignoring invalid firewall policy '%s' for key '%s' in [General] section of configuration file.", value, key);
+    }
+  }
   else {
     syslog(LOG_ERR, "Ignoring invalid key '%s' in [General] section of configuration file.", key);
   }

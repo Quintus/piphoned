@@ -36,6 +36,15 @@ dial_count_pin = 1
 # prepended to the domain.
 auto_domain = your-sipprovider-domain.invalid
 
+# You may set this to 'stun' to indicate use of a STUN server.
+# In that case, you have to uncomment the 'stunserver' option
+# below as well.
+firewall_policy = no
+
+# If your 'firewall_policy' is 'stun', set this to the domain
+# of the STUN server you want to use.
+#stunserver = stun.linphone.org
+
 # Define the ALSA devices to use for executing a call.
 # You can find these names with the `piphoned-soundcards'
 # program.

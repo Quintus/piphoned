@@ -53,12 +53,18 @@ struct Piphoned_PhoneManager* piphoned_phonemanager_new()
 
   p_manager->p_linphone = linphone_core_new(&p_manager->vtable, NULL, NULL, p_manager);
 
-  if (strlen(g_piphoned_config_info->stunserver) > 0) {
-    linphone_core_set_stun_server(p_manager->p_linphone,
-                                  g_piphoned_config_info->stunserver);
+  if (g_piphoned_config_info->firewall_policy == LinphonePolicyUseStun) {
+    if (strlen(g_piphoned_config_info->stunserver) > 0) {
+      linphone_core_set_stun_server(p_manager->p_linphone,
+                                    g_piphoned_config_info->stunserver);
+    }
+    else {
+      syslog(LOG_CRIT, "Use of STUN server requested, but 'stunserver' option unset. Exiting!");
+      exit(7);
+    }
   }
 
-  /* linphone_core_set_firewall_policy(p_manager->p_linphone, LinphonePolicyUseStun); */
+  linphone_core_set_firewall_policy(p_manager->p_linphone, g_piphoned_config_info->firewall_policy);
 
   /* Setup the sound devices */
   if (!linphone_core_sound_device_can_capture(p_manager->p_linphone, g_piphoned_config_info.capture_sound_device)) {
