@@ -36,6 +36,7 @@ struct Piphoned_Config_ParsedFile
   char capture_sound_device[512];  /*< Name of the ALSA device used for capture */
   FILE* p_calllogfile; /*< File to write phone logs into */
   char zrtp_secrets_file[PATH_MAX]; /*< Path to the file where to store the ZRTP secrets */
+  char stunserver[512]; /*< Domain of a STUN server to use */
 
   struct Piphoned_Config_ParsedFile_ProxyTable* proxies[PIPHONED_MAX_PROXY_NUM]; /*< Configuration for the proxies */
   int num_proxies; /*< Number of proxy configs in `proxies` */

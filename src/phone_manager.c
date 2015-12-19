@@ -52,8 +52,13 @@ struct Piphoned_PhoneManager* piphoned_phonemanager_new()
   p_manager->vtable.call_encryption_changed = call_encryption_changed;
 
   p_manager->p_linphone = linphone_core_new(&p_manager->vtable, NULL, NULL, p_manager);
-  /*linphone_core_set_stun_server(p_manager->p_linphone, "stun.linphone.org");
-    linphone_core_set_firewall_policy(p_manager->p_linphone, LinphonePolicyUseStun); */
+
+  if (strlen(g_piphoned_config_info->stunserver) > 0) {
+    linphone_core_set_stun_server(p_manager->p_linphone,
+                                  g_piphoned_config_info->stunserver);
+  }
+
+  /* linphone_core_set_firewall_policy(p_manager->p_linphone, LinphonePolicyUseStun); */
 
   /* Setup the sound devices */
   if (!linphone_core_sound_device_can_capture(p_manager->p_linphone, g_piphoned_config_info.capture_sound_device)) {

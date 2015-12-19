@@ -194,6 +194,9 @@ void piphoned_config_parse_ini_generalline(const char* line, struct Piphoned_Con
   else if (strcmp(key, "zrtp_secrets_file") == 0) {
     strcpy(p_info->zrtp_secrets_file, value);
   }
+  else if (strcmp(key, "stunserver") == 0) {
+    strcpy(p_info->stunserver, value);
+  }
   else {
     syslog(LOG_ERR, "Ignoring invalid key '%s' in [General] section of configuration file.", key);
   }
