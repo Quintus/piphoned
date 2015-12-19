@@ -381,6 +381,7 @@ void call_state_changed(LinphoneCore* p_linphone, LinphoneCall* p_call, Linphone
     break;
   case LinphoneCallStreamsRunning:
     handle_running_streams(p_linphone, p_call);
+    break;
   case LinphoneCallEnd:
     handle_call_ending(p_linphone, p_call);
     break;
