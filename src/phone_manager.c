@@ -451,6 +451,14 @@ void handle_incoming_call(LinphoneCore* p_linphone, LinphoneCall* p_call)
     linphone_core_decline_call(p_linphone, p_call, LinphoneReasonBusy);
     return;
   }
+  else if (p_manager->has_incoming_call) {
+    /* Also, if the phone is ringing for someone, do not accept
+     * calls from another one */
+    syslog(LOG_NOTICE, "Denying incoming call while the phone is ringing for another call.");
+    log_call(p_call, PIPHONED_CALL_BUSY);
+    linphone_core_decline_call(p_linphone, p_call, LinphoneReasonBusy);
+    return;
+  }
 
   p_manager->p_call = p_call;
   p_manager->has_incoming_call = true;
