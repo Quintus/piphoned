@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <syslog.h>
+#include <linphone/linphonecore.h>
 #include "configfile.h"
 #include "userinfo.h"
 
