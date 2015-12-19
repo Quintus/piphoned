@@ -40,6 +40,8 @@ void piphoned_config_init(const char* configfile)
     exit(2);
   }
 
+  memset(&g_piphoned_config_info, '\0', sizeof(struct Piphoned_Config_ParsedFile));
+
   s_current_parsestate = PIPHONED_CONFIG_PARSED_FILE_STARTING;
   piphoned_config_parse_file(p_file, &g_piphoned_config_info);
   s_current_parsestate = PIPHONED_CONFIG_PARSED_FILE_STOPPED;
