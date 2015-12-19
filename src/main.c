@@ -119,6 +119,13 @@ int command_start()
     freopen("/dev/null", "w", stdout);
     freopen("/dev/null", "w", stderr);
   }
+  else {
+    fprintf(stderr, "Not daemonizing. Beware that the standard\n");
+    fprintf(stderr, "output and error streams significantly slow\n");
+    fprintf(stderr, "down the program. Redirect them to a file or\n");
+    fprintf(stderr, "to /dev/null to ensure proper sound decoding.\n");
+    sleep(3); /* Give time to read the above */
+  }
 
   umask(0137); /* rw-r----- */
   chdir("/");
@@ -134,6 +141,7 @@ int command_start()
   file = fopen(g_piphoned_config_info.pidfile, "r");
   if (file) {
     syslog(LOG_CRIT, "PID file already exists! Exiting.");
+    fprintf(stderr, "PID file already exists, exiting.\n");
     fclose(file);
     retval = 3;
     goto finish;
