@@ -40,17 +40,20 @@ struct Piphoned_PhoneManager* piphoned_phonemanager_new()
   struct Piphoned_PhoneManager* p_manager = (struct Piphoned_PhoneManager*) malloc(sizeof(struct Piphoned_PhoneManager));
   memset(p_manager, '\0', sizeof(struct Piphoned_PhoneManager));
 
-  /* Output linphone logs to stdout if we have stdout (i.e. we are not forking) */
-  if (!g_cli_options.daemonize)
-    linphone_core_enable_logs(NULL);
+  /* Disable ORTP logs if running as a daemon.
+   * Otherwise output them to stdout. */
+  if (g_cli_options.daemonize)
+    linphone_core_set_log_level(0);
+  else
+    linphone_core_set_log_file(NULL);
 
   /* Setup linphone callbacks */
   p_manager->vtable.call_state_changed = call_state_changed;
   p_manager->vtable.call_encryption_changed = call_encryption_changed;
 
   p_manager->p_linphone = linphone_core_new(&p_manager->vtable, NULL, NULL, p_manager);
-  linphone_core_set_stun_server(p_manager->p_linphone, "stun.linphone.org");
-  linphone_core_set_firewall_policy(p_manager->p_linphone, LinphonePolicyUseStun);
+  /*linphone_core_set_stun_server(p_manager->p_linphone, "stun.linphone.org");
+    linphone_core_set_firewall_policy(p_manager->p_linphone, LinphonePolicyUseStun); */
 
   /* Setup the sound devices */
   if (!linphone_core_sound_device_can_capture(p_manager->p_linphone, g_piphoned_config_info.capture_sound_device)) {
