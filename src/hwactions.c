@@ -7,6 +7,7 @@
 #include <syslog.h>
 #include <sys/time.h>
 #include <wiringPi.h>
+#include <linphone/linphonecore.h>
 #include "hwactions.h"
 #include "configfile.h"
 #include "trigger_monitor.h"
