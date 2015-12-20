@@ -202,6 +202,8 @@ void piphoned_phonemanager_update(struct Piphoned_PhoneManager* p_manager)
  */
 void piphoned_phonemanager_place_call(struct Piphoned_PhoneManager* p_manager, const char* sip_uri)
 {
+  int i = 0;
+
   if (p_manager->is_calling) {
     syslog(LOG_WARNING, "Ignoring attempt to call while a call is running.");
     return;
@@ -228,6 +230,13 @@ void piphoned_phonemanager_place_call(struct Piphoned_PhoneManager* p_manager, c
   }
 
   p_manager->error_counter = 0; /* Reset for next time */
+
+  /* Give acustic feedback for the dialed URI so the user may spot
+   * errors he made, or that have technical reasons (unwanted digits
+   * counted due to hardware defect, for example */
+  for(i=4; sip_uri[i] != '@'; i++) {
+    linphone_core_play_dtmf(p_manager->p_linphone, sip_uri[i], 100);
+  }
 
   p_manager->p_call = linphone_core_invite(p_manager->p_linphone, sip_uri);
   if (!p_manager->p_call) {
