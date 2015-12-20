@@ -34,6 +34,7 @@ static void handle_running_streams(LinphoneCore* p_linphone, LinphoneCall* p_cal
 static void handle_call_ending(LinphoneCore* p_linphone, LinphoneCall* p_call);
 static void log_call(LinphoneCall* p_call, enum Piphoned_CallLogAction action);
 static void determine_datadir(struct Piphoned_PhoneManager* p_manager);
+static void create_missed_call_voicefile(const struct Piphoned_PhoneManager* p_manager, const LinphoneCall* p_call);
 
 /**
  * Creates a new PhoneManager. Do not use more than one PhoneManager
@@ -520,6 +521,7 @@ void handle_call_ending(LinphoneCore* p_linphone, LinphoneCall* p_call)
   if (p_manager->has_incoming_call) {
     syslog(LOG_NOTICE, "Call not accepted. Resetting to normal state.");
     log_call(p_call, PIPHONED_CALL_MISSED);
+    create_missed_call_voicefile(p_manager, p_call);
 
     /* If we didn't do this, the mainloop would be tricked into trying
      * to accept a call that doesn't exist anymore when the user in
@@ -618,4 +620,72 @@ void determine_datadir(struct Piphoned_PhoneManager* p_manager)
   syslog(LOG_CRIT, "Data directory '%s' cannot be opened: %m", buf2);
   syslog(LOG_CRIT, "Cannot determine data directory, exiting!");
   exit(7);
+}
+
+void create_missed_call_voicefile(const struct Piphoned_PhoneManager* p_manager, const LinphoneCall* p_call)
+{
+  const LinphoneAddress* p_address = linphone_call_get_remote_address(p_call);
+  const char* username = linphone_address_get_username(p_address); /* username is the phone number in regular phone usage; otherwise we have real SIP VOIP without compatbility */
+  char target_filename[MAX_PATH];
+  time_t cursec;
+  struct tm* timeinfo = NULL;
+  char timebuf[128];
+
+  /* Determine filename */
+  time(&cursec);
+  timeinfo = localtime(&cursec);
+  strftime(timebuf, 128, "%Y-%m-%d_%H-%M-%s", timeinfo);
+  sprintf(target_filename, "%s/%s.wav", g_piphoned_config.messages_dir, timebuf);
+
+  if (strcmp(username, "anonymous") == 0) { /* anonymous number */
+    char buf[PATH_MAX];
+    char* command = NULL;
+    sprintf(buf, "%s/anonym.wav", p_manager->datadir);
+
+    command = (char*) malloc(strlen("cp '") + strlen(buf) + strlen("' '") + strlen(target_filename) + strlen("'") + 1 /* NUL */);
+    sprintf(command, "cp '%s' '%s'", buf, target_filename);
+
+    syslog(LOG_DEBUG, "Executing: %s", command);
+
+    if (system(command) != 0)
+      syslog(LOG_ERR, "Command execution failed, could not create voice file for anonymous call.");
+    else
+      syslog(LOG_INFO, "Created voice file for anonymous call.");
+
+    free(command);
+  }
+  else if (strpbrk(username, "0123456789") == NULL) { /* TODO: Would be better to check if the domain is equal to the phone service domain, but there's no way to obtain that one? */
+    /* Non-numeric username, i.e. real VOIP other than
+     * the local phone service provider. Can't log this currently. */
+    syslog(LOG_NOTICE, "Call from non-numeric SIP identity %s@%s. Cannot create a voice file for this, ignoring.", username, linphone_address_get_domain);
+  }
+  else { /* Normal call from phone line */
+    char * command = NULL;
+    int i;
+
+    command = (char*) malloc(strlen("sox") + 1); /* +1 for NUL */
+    strcpy(command, "sox");
+
+    for (i=0; i < strlen(username); i++) {
+      char buf[PATH_MAX];
+      sprintf(buf, " '%s/digits/%c.wav'", p_manager->datadir, username[i]);
+
+      command = (char*) realloc(command, strlen(buf));
+      strcat(command, buf);
+    }
+
+    command = (char*) realloc(command, strlen(target_filename) + 3); /* +3 for space and two quotes */
+    strcat(command, " '");
+    strcat(command, target_filename);
+    strcat(command, "'");
+
+    syslog(LOG_DEBUG, "Executing: %s", command);
+
+    if (system(command) != 0)
+      syslog(LOG_ERR, "Command failed. Could not write voice file.");
+    else
+      syslog(LOG_INFO, "Wrote voice file '%s'.", target_filename);
+
+    free(command);
+  }
 }
