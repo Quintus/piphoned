@@ -657,7 +657,7 @@ void create_missed_call_voicefile(const struct Piphoned_PhoneManager* p_manager,
   else if (strpbrk(username, "0123456789") == NULL) { /* TODO: Would be better to check if the domain is equal to the phone service domain, but there's no way to obtain that one? */
     /* Non-numeric username, i.e. real VOIP other than
      * the local phone service provider. Can't log this currently. */
-    syslog(LOG_NOTICE, "Call from non-numeric SIP identity %s@%s. Cannot create a voice file for this, ignoring.", username, linphone_address_get_domain());
+    syslog(LOG_NOTICE, "Call from non-numeric SIP identity %s@%s. Cannot create a voice file for this, ignoring.", username, linphone_address_get_domain(p_address));
   }
   else { /* Normal call from phone line */
     char * command = NULL;
