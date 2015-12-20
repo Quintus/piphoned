@@ -580,7 +580,7 @@ void determine_datadir(struct Piphoned_PhoneManager* p_manager)
   char buf2[PATH_MAX]; /* Probably safe to assume PATH_MAX > 2048 */
   char* path = NULL;
   struct stat fileinfo;
-  ssize_t bytes = readlink("/proc/self/exe", &buf, 2047); /* Allow NUL, see memset() below */
+  ssize_t bytes = readlink("/proc/self/exe", buf, 2047); /* Allow NUL, see memset() below */
 
   if (bytes < 0) {
     int err = errno;
@@ -597,7 +597,7 @@ void determine_datadir(struct Piphoned_PhoneManager* p_manager)
   strcpy(buf2, path);
   strcat(buf2, "../data");
 
-  if (fstat(buf2, &fileinfo) == 0) {
+  if (stat(buf2, &fileinfo) == 0) {
     syslog(LOG_INFO, "data directory: %s", buf2);
     strcpy(p_manager->datadir, buf2);
     return;
@@ -609,7 +609,7 @@ void determine_datadir(struct Piphoned_PhoneManager* p_manager)
   strcpy(buf2, path);
   strcat(buf2, "../share/piphone/data");
 
-  if (fstat(buf2, &fileinfo) == 0) {
+  if (stat(buf2, &fileinfo) == 0) {
     syslog(LOG_INFO, "data directory: %s", buf2);
     strcpy(p_manager->datadir, buf2);
     return;
