@@ -19,6 +19,11 @@ audiogroup = audio
 # Where to write the PID to.
 pidfile = /var/run/piphoned.pid
 
+# Where to write the sound files of answered calls to.
+# piphoned must have write access to this directory
+# when running as the uid/gid user specified above.
+messagesdir = /var/lib/piphoned
+
 # This defines the pin where interrupts related to hangup are
 # expected (the lever on top of the phone). The value is a
 # pin number as understood by the wiringPi library (virtual

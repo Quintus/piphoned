@@ -221,6 +221,9 @@ void piphoned_config_parse_ini_generalline(const char* line, struct Piphoned_Con
       syslog(LOG_ERR, "Ignoring invalid firewall policy '%s' for key '%s' in [General] section of configuration file.", value, key);
     }
   }
+  else if (strcmp(key, "messagesdir") == 0) {
+    strcpy(p_info->messages_dir, value);
+  }
   else {
     syslog(LOG_ERR, "Ignoring invalid key '%s' in [General] section of configuration file.", key);
   }
