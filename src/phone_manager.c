@@ -4,6 +4,7 @@
 #include <syslog.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <limits.h>
 #include <libgen.h>
 #include "phone_manager.h"
 #include "commandline.h"
