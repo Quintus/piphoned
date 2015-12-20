@@ -234,8 +234,11 @@ void piphoned_phonemanager_place_call(struct Piphoned_PhoneManager* p_manager, c
   /* Give acustic feedback for the dialed URI so the user may spot
    * errors he made, or that have technical reasons (unwanted digits
    * counted due to hardware defect, for example */
+  linphone_core_play_dtmf(p_manager->p_linphone, '0', 2000);
+  ms_sleep(3);
   for(i=4; sip_uri[i] != '@'; i++) {
     linphone_core_play_dtmf(p_manager->p_linphone, sip_uri[i], 100);
+    ms_usleep(300000);
   }
 
   p_manager->p_call = linphone_core_invite(p_manager->p_linphone, sip_uri);
