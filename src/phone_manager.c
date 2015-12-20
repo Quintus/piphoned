@@ -3,6 +3,8 @@
 #include <time.h>
 #include <syslog.h>
 #include <sys/stat.h>
+#include <unistdh.>
+#include <libgen.h>
 #include "phone_manager.h"
 #include "commandline.h"
 #include "configfile.h"
@@ -30,6 +32,7 @@ static void handle_incoming_call(LinphoneCore* p_linphone, LinphoneCall* p_call)
 static void handle_running_streams(LinphoneCore* p_linphone, LinphoneCall* p_call);
 static void handle_call_ending(LinphoneCore* p_linphone, LinphoneCall* p_call);
 static void log_call(LinphoneCall* p_call, enum Piphoned_CallLogAction action);
+static void determine_datadir(struct Piphoned_PhoneManager* p_manager);
 
 /**
  * Creates a new PhoneManager. Do not use more than one PhoneManager
@@ -39,6 +42,8 @@ struct Piphoned_PhoneManager* piphoned_phonemanager_new()
 {
   struct Piphoned_PhoneManager* p_manager = (struct Piphoned_PhoneManager*) malloc(sizeof(struct Piphoned_PhoneManager));
   memset(p_manager, '\0', sizeof(struct Piphoned_PhoneManager));
+
+  determine_datadir(p_manager);
 
   /* Disable ORTP logs if running as a daemon.
    * Otherwise output them to stdout. */
@@ -566,4 +571,50 @@ void log_call(LinphoneCall* p_call, enum Piphoned_CallLogAction action)
   }
 
   ms_free(sip_uri);
+}
+
+void determine_datadir(struct Piphoned_PhoneManager* p_manager)
+{
+  char buf[2048];
+  char buf2[PATH_MAX]; /* Probably safe to assume PATH_MAX > 2048 */
+  char* path = NULL;
+  struct stat fileinfo;
+  ssize_t bytes = readlink("/proc/self/exe", &buf, 2047); /* Allow NUL, see memset() below */
+
+  if (bytes < 0) {
+    int err = errno;
+    fprintf(stderr, "Failed to read /proc/self/exe: %s. Exiting!", strerror(err));
+    exit(7);
+  }
+
+  memset(buf+bytes, '\0', 2048 - bytes); /* Fill rest with NUL */
+
+  /* dirname() messes with its argument, do not use `buf' unchanged afterwards */
+  path = dirname(buf);
+
+  /* Try 1: Running from the build directory? Then: ../data */
+  strcpy(buf2, path);
+  strcat(buf2, "../data");
+
+  if (fstat(buf2, &fileinfo) == 0) {
+    syslog(LOG_INFO, "data directory: %s", buf2);
+    strcpy(p_manager->datadir, buf2);
+    return;
+  }
+
+  syslog(LOG_DEBUG, "Directory %s (build time data dir) cannot be opened: %m. Trying install time data dir.", buf2);
+
+  /* Try 2: Running from installed config. Then: ../share/piphone/data */
+  strcpy(buf2, path);
+  strcat(buf2, "../share/piphone/data");
+
+  if (fstat(buf2, &fileinfo) == 0) {
+    syslog(LOG_INFO, "data directory: %s", buf2);
+    strcpy(p_manager->datadir, buf2);
+    return;
+  }
+
+  syslog(LOG_CRIT, "Data directory '%s' cannot be opened: %m", buf2);
+  syslog(LOG_CRIT, "Cannot determine data directory, exiting!");
+  exit(7);
 }

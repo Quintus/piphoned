@@ -14,6 +14,7 @@ struct Piphoned_PhoneManager {
   bool is_calling;           /*< Is a call in progress? */
   bool has_incoming_call;    /*< Is an incoming call awaiting acceptance? */
   long error_counter;        /*< For preventing unwated dialing */
+  char datadir[PATH_MAX];    /* Location of the data/ directory, without trailing slash */
 };
 
 struct Piphoned_PhoneManager* piphoned_phonemanager_new();
