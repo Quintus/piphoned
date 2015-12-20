@@ -595,7 +595,7 @@ void determine_datadir(struct Piphoned_PhoneManager* p_manager)
 
   /* Try 1: Running from the build directory? Then: ../data */
   strcpy(buf2, path);
-  strcat(buf2, "../data");
+  strcat(buf2, "/../data");
 
   if (stat(buf2, &fileinfo) == 0) {
     syslog(LOG_INFO, "data directory: %s", buf2);
@@ -607,7 +607,7 @@ void determine_datadir(struct Piphoned_PhoneManager* p_manager)
 
   /* Try 2: Running from installed config. Then: ../share/piphone/data */
   strcpy(buf2, path);
-  strcat(buf2, "../share/piphone/data");
+  strcat(buf2, "/../share/piphone/data");
 
   if (stat(buf2, &fileinfo) == 0) {
     syslog(LOG_INFO, "data directory: %s", buf2);
